@@ -65,27 +65,45 @@ Projetos com prazos fixos exigem priorização pragmática para assegurar a apro
 ## 5. Cronograma Paralelo Fase a Fase
 
 ```mermaid
-gantt
-    title Cronograma Paralelo de Desenvolvimento (A-Maze-ing)
-    dateFormat  YYYY-MM-DD
-    section Integrante A (Algoritmos)
-    Fase 2: IntFlag e Grid Coerente         :a1, 2026-11-08, 1d
-    Fase 3: Recursive Backtracker           :a2, after a1, 2d
-    Fase 4: Posicionamento do 42            :a3, after a2, 1d
-    Fase 5: Modo Pac-Man (Loops e Dead-ends):a4, after a3, 2d
-    Fase 6: BFS e Menor Caminho             :a5, after a4, 1d
-    section Integrante B (I/O e Visual)
-    Fase 0: Repositório, Makefile, venv     :b0, 2026-11-08, 1d
-    Fase 1: Config Parser e Validações      :b1, after b0, 1d
-    Fase 6: Serialização do Formato Hex     :b2, after b1, 1d
-    Fase 7: Entry point a_maze_ing.py       :b3, after b2, 1d
-    Fase 8: Renderizador ASCII Interativo   :b4, after b3, 2d
-    Fase 9: Packaging e pyproject.toml      :b5, after b4, 1d
-    section Integração e Defesa
-    Fase 11: Qualidade (flake8 e mypy)      :c1, after a5 b5, 2d
-    Fase 12: Testes com maze_analyzer       :c2, after c1, 1d
-    Fase 13: Ensaio de Defesa ao Vivo       :c3, after c2, 1d
+flowchart TD
+    subgraph A["Integrante A (Algoritmos e Grafos)"]
+        direction TB
+        A1["Fase 2: IntFlag e Coerência de Paredes"] --> A2["Fase 3: Recursive Backtracker (DFS)"]
+        A2 --> A3["Fase 4: Posicionamento do Padrão 42"]
+        A3 --> A4["Fase 5: Modo Pac-Man (Loops e Dead-ends)"]
+        A4 --> A5["Fase 6: BFS e Menor Caminho"]
+    end
+
+    subgraph B["Integrante B (I/O, Visual e Empacotamento)"]
+        direction TB
+        B0["Fase 0: Repositório, Makefile e venv"] --> B1["Fase 1: Config Parser e Validações"]
+        B1 --> B2["Fase 6: Serialização em Hexadecimal"]
+        B2 --> B3["Fase 7: Entry Point a_maze_ing.py"]
+        B3 --> B4["Fase 8: Renderizador ASCII Interativo"]
+        B4 --> B5["Fase 9: Packaging e pyproject.toml"]
+    end
+
+    subgraph C["Etapas Conjuntas (Qualidade e Defesa)"]
+        direction TB
+        C1["Fase 11: Qualidade de Código (flake8 e mypy)"] --> C2["Fase 12: Testes com maze_analyzer"]
+        C2 --> C3["Fase 13: Ensaio Geral da Defesa"]
+    end
+
+    A5 --> C1
+    B5 --> C1
 ```
+
+| Dia Estimado | Integrante A (Algoritmos) | Integrante B (I/O & Visual) | Foco de Integração |
+| :--- | :--- | :--- | :--- |
+| **Dia 1** | Fase 2: `Direction(IntFlag)` e `remove_wall` | Fase 0: Setup, Makefile e venv; Fase 1: Parser | `make lint` inicial rodando |
+| **Dia 2** | Fase 3: Recursive Backtracker (DFS iterativo) | Fase 1: Validações e `config.txt` padrão | Teste unitário de parsing |
+| **Dia 3** | Fase 4: Bitmap e posicionamento do "42" | Fase 6: Serialização do arquivo em hex | Validação da matriz com "42" |
+| **Dia 4** | Fase 5: Modo Pac-Man (loops e dead-ends) | Fase 7: CLI em `a_maze_ing.py` | Execução ponta a ponta sem visual |
+| **Dia 5** | Fase 6: BFS e menor caminho | Fase 8: Renderizador ASCII interativo | Teste das 3 interações no terminal |
+| **Dia 6** | Apoio e revisão de regressão | Fase 9: `pyproject.toml` e build do wheel | `pip install mazegen-*.whl` |
+| **Dia 7** | Fase 11: Tipagem estrita com `mypy` | Fase 11: Conformidade com `flake8` | `make lint-strict` 100% limpo |
+| **Dia 8** | Fase 12: Regressão no `maze_analyzer.py` | Fase 12: Cobertura com `pytest` | 50 labirintos validados sem erro |
+| **Dia 9** | Fase 13: Flashcards e ensaio técnico | Fase 13: Limpeza e simulação ao vivo | Ensaio cronometrado da defesa |
 
 ---
 
