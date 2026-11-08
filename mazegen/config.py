@@ -73,3 +73,18 @@ def _parse_bool(raw: str, key: str) -> bool:
     )
 
 
+def _parse_coords(raw: str, key: str) -> Tuple[int, int]:
+    """Parse an 'x,y' coordinate pair for a given configuration key."""
+    parts = [part.strip() for part in raw.split(",")]
+    if len(parts) != 2:
+        raise ConfigError(
+            f"Invalid coordinates for {key}: {raw!r} (expected x,y)."
+        )
+    try:
+        return int(parts[0]), int(parts[1])
+    except ValueError as exc:
+        raise ConfigError(
+            f"Non-integer coordinates for {key}: {raw!r}."
+        ) from exc
+
+
