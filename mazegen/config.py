@@ -88,3 +88,39 @@ def _parse_coords(raw: str, key: str) -> Tuple[int, int]:
         ) from exc
 
 
+def _read_raw_pairs(path: str) -> Dict[str, str]:
+    """Read raw KEY=VALUE pairs from a configuration file."""
+    pairs: Dict[str, str] = {}
+    try:
+        with open(path, encoding="utf-8") as stream:
+            for line_num, raw_line in enumerate(stream, start=1):
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    raise ConfigError(
+                        f"Line {line_num}: expected KEY=VALUE, got {line!r}."
+                    )
+                key, value = line.split("=", 1)
+                key = key.strip().upper()
+                value = value.strip()
+                if not key:
+                    raise ConfigError(
+                        f"Line {line_num}: empty key before '='."
+                    )
+                if key not in MANDATORY_KEYS and key not in OPTIONAL_KEYS:
+                    raise ConfigError(
+                        f"Line {line_num}: unknown configuration key {key!r}."
+                    )
+                if key in pairs:
+                    raise ConfigError(
+                        f"Line {line_num}: duplicate key {key!r}."
+                    )
+                pairs[key] = value
+    except OSError as exc:
+        raise ConfigError(
+            f"Could not read configuration file {path!r}: {exc.strerror}."
+        ) from exc
+    return pairs
+
+
