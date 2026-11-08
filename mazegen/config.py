@@ -124,3 +124,33 @@ def _read_raw_pairs(path: str) -> Dict[str, str]:
     return pairs
 
 
+def _validate_bounds(
+    width: int,
+    height: int,
+    entry: Tuple[int, int],
+    exit_: Tuple[int, int],
+    output_file: str,
+) -> None:
+    """Validate semantic constraints on dimensions, coordinates, and path."""
+    if width <= 0 or height <= 0:
+        raise ConfigError(
+            f"WIDTH and HEIGHT must be positive (got {width}x{height})."
+        )
+    ex, ey = entry
+    if not (0 <= ex < width and 0 <= ey < height):
+        raise ConfigError(
+            f"ENTRY {entry} is out of bounds for {width}x{height} maze."
+        )
+    xx, xy = exit_
+    if not (0 <= xx < width and 0 <= xy < height):
+        raise ConfigError(
+            f"EXIT {exit_} is out of bounds for {width}x{height} maze."
+        )
+    if entry == exit_:
+        raise ConfigError(
+            f"ENTRY and EXIT must be different cells (both are {entry})."
+        )
+    if not output_file:
+        raise ConfigError("OUTPUT_FILE cannot be empty.")
+
+
