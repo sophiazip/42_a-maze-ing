@@ -26,3 +26,11 @@ clean:
 	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} +
 	rm -rf .mypy_cache .pytest_cache dist build *.egg-info
 
+lint:
+	flake8 .
+	mypy . --exclude '^\.venv/' --warn-return-any --warn-unused-ignores \
+		--ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+
+lint-strict:
+	flake8 .
+	mypy . --exclude '^\.venv/' --strict
