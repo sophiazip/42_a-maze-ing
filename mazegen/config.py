@@ -20,3 +20,7 @@ VALID_ALGORITHMS = frozenset(ALGORITHMS)
 VALID_DISPLAYS = frozenset({"ascii", "mlx"})
 
 
+class ConfigError(Exception):
+    """Raised when the configuration file is missing, malformed, or invalid."""
+
+
