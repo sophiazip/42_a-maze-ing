@@ -154,3 +154,60 @@ def _validate_bounds(
         raise ConfigError("OUTPUT_FILE cannot be empty.")
 
 
+def parse_config(path: str) -> MazeConfig:
+    """Parse and validate a maze configuration file.
+
+    Args:
+        path: Path to the configuration file.
+
+    Returns:
+        A validated MazeConfig instance.
+
+    Raises:
+        ConfigError: If the file cannot be read or contains invalid settings.
+    """
+    pairs = _read_raw_pairs(path)
+    missing = sorted(MANDATORY_KEYS - pairs.keys())
+    if missing:
+        raise ConfigError(
+            f"Missing mandatory configuration keys: {', '.join(missing)}."
+        )
+
+    width = _parse_int(pairs["WIDTH"], "WIDTH")
+    height = _parse_int(pairs["HEIGHT"], "HEIGHT")
+    entry = _parse_coords(pairs["ENTRY"], "ENTRY")
+    exit_ = _parse_coords(pairs["EXIT"], "EXIT")
+    output_file = pairs["OUTPUT_FILE"]
+    perfect = _parse_bool(pairs["PERFECT"], "PERFECT")
+
+    _validate_bounds(width, height, entry, exit_, output_file)
+
+    seed: Optional[int] = None
+    if "SEED" in pairs and pairs["SEED"].lower() not in {"", "none"}:
+        seed = _parse_int(pairs["SEED"], "SEED")
+
+    algorithm = pairs.get("ALGORITHM", "backtracker").lower()
+    if algorithm not in VALID_ALGORITHMS:
+        raise ConfigError(
+            f"Unsupported ALGORITHM {algorithm!r}. "
+            f"Choose from: {', '.join(sorted(VALID_ALGORITHMS))}."
+        )
+
+    display = pairs.get("DISPLAY", "ascii").lower()
+    if display not in VALID_DISPLAYS:
+        raise ConfigError(
+            f"Unsupported DISPLAY {display!r}. "
+            f"Choose from: {', '.join(sorted(VALID_DISPLAYS))}."
+        )
+
+    return MazeConfig(
+        width=width,
+        height=height,
+        entry=entry,
+        exit=exit_,
+        output_file=output_file,
+        perfect=perfect,
+        seed=seed,
+        algorithm=algorithm,
+        display=display,
+    )
