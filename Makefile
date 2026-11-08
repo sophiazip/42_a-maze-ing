@@ -16,3 +16,9 @@ install:
 		$(VENV_PIP) install --no-index --no-deps ../mlx-2.2/ubuntu/mlx-2.2-py3-none-any.whl; \
 	fi
 
+run:
+	$(RUN_PY) a_maze_ing.py $(CONFIG)
+
+debug:
+	$(RUN_PY) -m pdb a_maze_ing.py $(CONFIG)
+
