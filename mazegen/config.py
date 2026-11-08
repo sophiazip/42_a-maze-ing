@@ -24,3 +24,30 @@ class ConfigError(Exception):
     """Raised when the configuration file is missing, malformed, or invalid."""
 
 
+@dataclass(frozen=True)
+class MazeConfig:
+    """Validated maze generation and display configuration.
+
+    Attributes:
+        width: Maze width in cells.
+        height: Maze height in cells.
+        entry: Entry coordinates as (x, y).
+        exit: Exit coordinates as (x, y).
+        output_file: Path where the generated maze is written.
+        perfect: True for a perfect maze, False for a playable board.
+        seed: Optional integer seed for reproducible generation.
+        algorithm: Generation algorithm name.
+        display: Visual renderer mode ('ascii' or 'mlx').
+    """
+
+    width: int
+    height: int
+    entry: Tuple[int, int]
+    exit: Tuple[int, int]
+    output_file: str
+    perfect: bool
+    seed: Optional[int] = None
+    algorithm: str = "backtracker"
+    display: str = "ascii"
+
+
