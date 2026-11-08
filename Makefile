@@ -22,3 +22,7 @@ run:
 debug:
 	$(RUN_PY) -m pdb a_maze_ing.py $(CONFIG)
 
+clean:
+	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} +
+	rm -rf .mypy_cache .pytest_cache dist build *.egg-info
+
