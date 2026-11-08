@@ -51,3 +51,25 @@ class MazeConfig:
     display: str = "ascii"
 
 
+def _parse_int(raw: str, key: str) -> int:
+    """Parse an integer value for a given configuration key."""
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ConfigError(
+            f"Invalid integer for {key}: {raw!r}."
+        ) from exc
+
+
+def _parse_bool(raw: str, key: str) -> bool:
+    """Parse a boolean value for a given configuration key."""
+    lowered = raw.strip().lower()
+    if lowered in {"true", "1", "yes"}:
+        return True
+    if lowered in {"false", "0", "no"}:
+        return False
+    raise ConfigError(
+        f"Invalid boolean for {key}: {raw!r} (expected True or False)."
+    )
+
+
