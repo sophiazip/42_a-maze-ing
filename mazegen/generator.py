@@ -326,3 +326,26 @@ class MazeGenerator:
                 self._remove_wall(cell_a, cell_b, direction)
                 self._record_step("carve", cell_a, cell_b, direction, cell_b)
 
+    def _run_prim(self) -> None:
+        """Carve a spanning tree using randomized Prim's frontier."""
+        visited: Set[Cell] = set(self.blocked_cells)
+        start = self.entry_cell
+        visited.add(start)
+        frontier: List[Tuple[Cell, Cell, Direction]] = [
+            (start, nxt, direction)
+            for direction, nxt in self._neighbors(start)
+        ]
+
+        while frontier:
+            idx = self._rng.randrange(len(frontier))
+            frontier[idx], frontier[-1] = frontier[-1], frontier[idx]
+            cell_a, cell_b, direction = frontier.pop()
+            if cell_b in visited:
+                continue
+            self._remove_wall(cell_a, cell_b, direction)
+            self._record_step("carve", cell_a, cell_b, direction, cell_b)
+            visited.add(cell_b)
+            for next_dir, nxt in self._neighbors(cell_b):
+                if nxt not in visited:
+                    frontier.append((cell_b, nxt, next_dir))
+
