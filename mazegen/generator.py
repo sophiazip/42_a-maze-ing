@@ -530,3 +530,52 @@ class MazeGenerator:
             self._record_steps = False
         self._generated = True
 
+    def _bfs_solve(self) -> Tuple[List[Cell], List[Cell], str]:
+        """Run BFS from entry to exit, returning explored, path cells, NESW."""
+        start = self.entry_cell
+        target = self.exit_cell
+        queue: deque[Cell] = deque([start])
+        parent: Dict[Cell, Tuple[Cell, Direction]] = {}
+        seen: Set[Cell] = {start}
+        explored: List[Cell] = [start]
+
+        while queue:
+            curr = queue.popleft()
+            if curr == target:
+                break
+            row, col = curr
+            for direction in Direction:
+                if not (self.grid[row][col] & int(direction)):
+                    dr, dc = direction.step
+                    nxt = (row + dr, col + dc)
+                    if self._in_bounds(*nxt) and nxt not in seen:
+                        seen.add(nxt)
+                        explored.append(nxt)
+                        parent[nxt] = (curr, direction)
+                        queue.append(nxt)
+
+        if target not in parent and target != start:
+            return explored, [], ""
+
+        letters: List[str] = []
+        cells: List[Cell] = [target]
+        curr = target
+        while curr != start:
+            prev, direction = parent[curr]
+            letters.append(direction.letter)
+            cells.append(prev)
+            curr = prev
+        letters.reverse()
+        cells.reverse()
+        return explored, cells, "".join(letters)
+
+    def shortest_path(self) -> str:
+        """Compute the shortest valid path from entry to exit as NESW text."""
+        _explored, _cells, route = self._bfs_solve()
+        return route
+
+    def solve_with_trace(self) -> Tuple[List[Cell], List[Cell]]:
+        """Return (explored_cells, shortest_path_cells) for animation."""
+        explored, cells, _route = self._bfs_solve()
+        return explored, cells
+
