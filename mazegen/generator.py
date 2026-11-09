@@ -349,3 +349,45 @@ class MazeGenerator:
                 if nxt not in visited:
                     frontier.append((cell_b, nxt, next_dir))
 
+    def _ensure_full_connectivity(self) -> None:
+        """Connect any disconnected playable components to entry's region."""
+        playable = {
+            (r, c)
+            for r in range(self.height)
+            for c in range(self.width)
+            if (r, c) not in self.blocked_cells
+        }
+        while True:
+            reachable = self._reachable_from(self.entry_cell)
+            missing = playable - reachable
+            if not missing:
+                break
+            bridged = False
+            for cell in sorted(missing):
+                for direction, nxt in self._neighbors(cell):
+                    if nxt in reachable:
+                        self._remove_wall(cell, nxt, direction)
+                        self._record_step("carve", cell, nxt, direction, nxt)
+                        bridged = True
+                        break
+                if bridged:
+                    break
+            if not bridged:
+                break
+
+    def _reachable_from(self, start: Cell) -> Set[Cell]:
+        """Return all cells reachable from start via open passages."""
+        seen: Set[Cell] = {start}
+        queue: deque[Cell] = deque([start])
+        while queue:
+            curr = queue.popleft()
+            row, col = curr
+            for direction in Direction:
+                if not (self.grid[row][col] & int(direction)):
+                    dr, dc = direction.step
+                    nxt = (row + dr, col + dc)
+                    if self._in_bounds(*nxt) and nxt not in seen:
+                        seen.add(nxt)
+                        queue.append(nxt)
+        return seen
+
