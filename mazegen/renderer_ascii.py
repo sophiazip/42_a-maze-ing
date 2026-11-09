@@ -42,3 +42,32 @@ COLOR_EXIT = "\033[91;1m"
 COLOR_HUD = "\033[97;1m"
 
 # Vertex bitmask: 1=Up, 2=Right, 4=Down, 8=Left
+JUNCTION_GLYPHS: Dict[int, str] = {
+    0: " ",
+    1: "\u2579",   # ╹
+    2: "\u257a",   # ╺
+    3: "\u2517",   # ┗
+    4: "\u257b",   # ╻
+    5: "\u2503",   # ┃
+    6: "\u250f",   # ┏
+    7: "\u2523",   # ┣
+    8: "\u2578",   # ╸
+    9: "\u251b",   # ┛
+    10: "\u2501",  # ━
+    11: "\u253b",  # ┻
+    12: "\u2513",  # ┓
+    13: "\u252b",  # ┫
+    14: "\u2533",  # ┳
+    15: "\u254b",  # ╋
+}
+
+H_WALL = "\u2501\u2501\u2501"
+V_WALL = "\u2503"
+PATTERN_FILL = "\u2593\u2593\u2593"
+ENTRY_GLYPH = " \u25c6 "
+EXIT_GLYPH = " \u2605 "
+PATH_DOT = " \u2022 "
+PATH_BRIDGE_H = "\u2022"
+PATH_BRIDGE_V = " \u2022 "
+
+
