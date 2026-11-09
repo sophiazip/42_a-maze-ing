@@ -25,3 +25,11 @@ WALL_PALETTE: Tuple[Tuple[str, int, int, int], ...] = (
 )
 
 # (name, fill_color, accent_color)
+PATTERN_PALETTE: Tuple[Tuple[str, int, int], ...] = (
+    ("Slate", 0xFF1E293B, 0xFF334155),
+    ("Forest", 0xFF14532D, 0xFF166534),
+    ("Indigo", 0xFF312E81, 0xFF4338CA),
+    ("Crimson", 0xFF4C0519, 0xFF881337),
+)
+
+
