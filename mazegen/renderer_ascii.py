@@ -130,3 +130,45 @@ def _render_horizontal_border(
     return "".join(parts)
 
 
+def _render_cell_row(
+    gen: MazeGenerator,
+    row: int,
+    wall_ansi: str,
+    path_ansi: str,
+    pattern_ansi: str,
+    path_set: Set[Tuple[int, int]],
+    show_path: bool,
+) -> str:
+    """Render cell row with vertical walls, entry/exit, '42', and path."""
+    parts: List[str] = []
+    entry_rc = gen.entry_cell
+    exit_rc = gen.exit_cell
+
+    for vc in range(gen.width + 1):
+        if _has_vertical_wall(gen, row, vc):
+            parts.append(f"{wall_ansi}{V_WALL}{ANSI_RESET}")
+        elif (
+            show_path
+            and 0 < vc < gen.width
+            and (row, vc - 1) in path_set
+            and (row, vc) in path_set
+        ):
+            parts.append(f"{path_ansi}{PATH_BRIDGE_H}{ANSI_RESET}")
+        else:
+            parts.append(" ")
+
+        if vc < gen.width:
+            rc = (row, vc)
+            if rc == entry_rc:
+                parts.append(f"{COLOR_ENTRY}{ENTRY_GLYPH}{ANSI_RESET}")
+            elif rc == exit_rc:
+                parts.append(f"{COLOR_EXIT}{EXIT_GLYPH}{ANSI_RESET}")
+            elif rc in gen.blocked_cells:
+                parts.append(f"{pattern_ansi}{PATTERN_FILL}{ANSI_RESET}")
+            elif show_path and rc in path_set:
+                parts.append(f"{path_ansi}{PATH_DOT}{ANSI_RESET}")
+            else:
+                parts.append("   ")
+    return "".join(parts)
+
+
