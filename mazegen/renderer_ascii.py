@@ -71,3 +71,21 @@ PATH_BRIDGE_H = "\u2022"
 PATH_BRIDGE_V = " \u2022 "
 
 
+def _has_horizontal_wall(gen: MazeGenerator, vr: int, col: int) -> bool:
+    """Return True if a horizontal wall exists above cell (vr, col)."""
+    if vr == 0:
+        return bool(gen.grid[0][col] & int(Direction.NORTH))
+    if vr == gen.height:
+        return bool(gen.grid[gen.height - 1][col] & int(Direction.SOUTH))
+    return bool(gen.grid[vr][col] & int(Direction.NORTH))
+
+
+def _has_vertical_wall(gen: MazeGenerator, row: int, vc: int) -> bool:
+    """Return True if a vertical wall exists left of cell (row, vc)."""
+    if vc == 0:
+        return bool(gen.grid[row][0] & int(Direction.WEST))
+    if vc == gen.width:
+        return bool(gen.grid[row][gen.width - 1] & int(Direction.EAST))
+    return bool(gen.grid[row][vc] & int(Direction.WEST))
+
+
