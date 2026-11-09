@@ -273,3 +273,30 @@ class MazeGenerator:
                 result.append((direction, (nr, nc)))
         return result
 
+    def _run_backtracker(self) -> None:
+        """Carve a spanning tree using an iterative DFS stack."""
+        visited: Set[Cell] = set(self.blocked_cells)
+        start = self.entry_cell
+        stack: List[Cell] = [start]
+        visited.add(start)
+
+        while stack:
+            current = stack[-1]
+            unvisited = [
+                (direction, nxt)
+                for direction, nxt in self._neighbors(current)
+                if nxt not in visited
+            ]
+            if unvisited:
+                direction, nxt = self._rng.choice(unvisited)
+                self._remove_wall(current, nxt, direction)
+                self._record_step("carve", current, nxt, direction, nxt)
+                visited.add(nxt)
+                stack.append(nxt)
+            else:
+                popped = stack.pop()
+                if stack:
+                    self._record_step(
+                        "backtrack", popped, stack[-1], None, stack[-1]
+                    )
+
