@@ -127,3 +127,50 @@ class _DisjointSetUnion:
         return True
 
 
+class MazeGenerator:
+    """Configurable maze generator supporting perfect and braided modes.
+
+    Can be instantiated either from a :class:`MazeConfig` object or via keyword
+    parameters for standalone reuse in external projects.
+    """
+
+    def __init__(
+        self,
+        config: Optional[MazeConfig] = None,
+        *,
+        width: int = 20,
+        height: int = 15,
+        entry: Coord = (0, 0),
+        exit: Coord = (19, 14),
+        perfect: bool = True,
+        seed: Optional[int] = None,
+        algorithm: str = "backtracker",
+    ) -> None:
+        """Initialize the maze grid and reserve the '42' obstacle cells."""
+        if config is not None:
+            self.width = config.width
+            self.height = config.height
+            self.entry = config.entry
+            self.exit = config.exit
+            self.perfect = config.perfect
+            self.seed = config.seed
+            self.algorithm = config.algorithm
+        else:
+            self.width = width
+            self.height = height
+            self.entry = entry
+            self.exit = exit
+            self.perfect = perfect
+            self.seed = seed
+            self.algorithm = algorithm
+
+        self._validate_dimensions()
+        self._rng = random.Random(self.seed)
+        self.grid: List[List[int]] = [
+            [ALL_WALLS for _ in range(self.width)] for _ in range(self.height)
+        ]
+        self.blocked_cells: Set[Cell] = self._compute_pattern_cells()
+        self.generation_steps: List[GenerationStep] = []
+        self._record_steps = False
+        self._generated = False
+
