@@ -91,3 +91,39 @@ class GenerationStep:
     active: Cell
 
 
+class _DisjointSetUnion:
+    """Union-Find structure with path compression and union by rank."""
+
+    def __init__(self, items: Iterable[Cell]) -> None:
+        """Initialize each item as its own singleton set."""
+        self._parent: Dict[Cell, Cell] = {item: item for item in items}
+        self._rank: Dict[Cell, int] = {item: 0 for item in items}
+
+    def find(self, item: Cell) -> Cell:
+        """Return the representative root of item's set."""
+        root = item
+        while self._parent[root] != root:
+            root = self._parent[root]
+        curr = item
+        while curr != root:
+            nxt = self._parent[curr]
+            self._parent[curr] = root
+            curr = nxt
+        return root
+
+    def union(self, first: Cell, second: Cell) -> bool:
+        """Merge two sets; return False if they already share a root."""
+        root_a = self.find(first)
+        root_b = self.find(second)
+        if root_a == root_b:
+            return False
+        if self._rank[root_a] < self._rank[root_b]:
+            self._parent[root_a] = root_b
+        elif self._rank[root_a] > self._rank[root_b]:
+            self._parent[root_b] = root_a
+        else:
+            self._parent[root_b] = root_a
+            self._rank[root_a] += 1
+        return True
+
+
