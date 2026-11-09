@@ -230,3 +230,35 @@ class MazeGenerator:
             return set()
         return cells
 
+    def _record_step(
+        self,
+        kind: str,
+        cell_a: Cell,
+        cell_b: Optional[Cell],
+        direction: Optional[Direction],
+        active: Cell,
+    ) -> None:
+        """Append a generation event when step recording is enabled."""
+        if self._record_steps:
+            self.generation_steps.append(
+                GenerationStep(
+                    kind=kind,
+                    cell_a=cell_a,
+                    cell_b=cell_b,
+                    direction=direction,
+                    active=active,
+                )
+            )
+
+    def _remove_wall(
+        self,
+        cell_a: Cell,
+        cell_b: Cell,
+        direction: Direction,
+    ) -> None:
+        """Open the shared wall between two adjacent cells atomically."""
+        r1, c1 = cell_a
+        r2, c2 = cell_b
+        self.grid[r1][c1] &= ~int(direction)
+        self.grid[r2][c2] &= ~int(direction.opposite)
+
