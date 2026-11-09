@@ -579,3 +579,18 @@ class MazeGenerator:
         explored, cells, _route = self._bfs_solve()
         return explored, cells
 
+    def shortest_path_coords(self) -> List[Coord]:
+        """Return ordered (x, y) coordinates along the shortest path."""
+        x, y = self.entry
+        coords: List[Coord] = [(x, y)]
+        letter_map = {d.letter: d for d in Direction}
+        for char in self.shortest_path():
+            direction = letter_map.get(char)
+            if direction is None:
+                break
+            dx, dy = MOVE_OFFSETS[direction]
+            x += dx
+            y += dy
+            coords.append((x, y))
+        return coords
+
