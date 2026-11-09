@@ -391,3 +391,65 @@ class MazeGenerator:
                         queue.append(nxt)
         return seen
 
+    def _is_square_fully_open(self, top_row: int, left_col: int) -> bool:
+        """Return True if a 3x3 block has all internal walls removed."""
+        for dr in range(3):
+            for dc in range(3):
+                r, c = top_row + dr, left_col + dc
+                if dc < 2 and (self.grid[r][c] & int(Direction.EAST)):
+                    return False
+                if dr < 2 and (self.grid[r][c] & int(Direction.SOUTH)):
+                    return False
+        return True
+
+    def _creates_open_area(
+        self,
+        cell_a: Cell,
+        cell_b: Cell,
+        direction: Direction,
+    ) -> bool:
+        """Return True if opening cell_a <-> cell_b creates a 3x3 open area."""
+        r1, c1 = cell_a
+        r2, c2 = cell_b
+        self.grid[r1][c1] &= ~int(direction)
+        self.grid[r2][c2] &= ~int(direction.opposite)
+
+        min_r = max(0, min(r1, r2) - 2)
+        max_r = min(self.height - 3, max(r1, r2))
+        min_c = max(0, min(c1, c2) - 2)
+        max_c = min(self.width - 3, max(c1, c2))
+
+        creates = False
+        for top_r in range(min_r, max_r + 1):
+            for left_c in range(min_c, max_c + 1):
+                if self._is_square_fully_open(top_r, left_c):
+                    creates = True
+                    break
+            if creates:
+                break
+
+        self.grid[r1][c1] |= int(direction)
+        self.grid[r2][c2] |= int(direction.opposite)
+        return creates
+
+    def _open_passages_count(self, cell: Cell) -> int:
+        """Return the number of open passages leaving cell."""
+        row, col = cell
+        return sum(
+            1
+            for direction in Direction
+            if not (self.grid[row][col] & int(direction))
+        )
+
+    def _closed_normal_neighbors(
+        self,
+        cell: Cell,
+    ) -> List[Tuple[Direction, Cell]]:
+        """Return closed walls bordering a playable neighbour."""
+        row, col = cell
+        candidates: List[Tuple[Direction, Cell]] = []
+        for direction, nxt in self._neighbors(cell):
+            if self.grid[row][col] & int(direction):
+                candidates.append((direction, nxt))
+        return candidates
+
