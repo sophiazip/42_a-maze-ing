@@ -201,3 +201,32 @@ class MazeGenerator:
         """Return True when (row, col) lies within the grid."""
         return 0 <= row < self.height and 0 <= col < self.width
 
+    def _compute_pattern_cells(self) -> Set[Cell]:
+        """Compute centered '42' cells, omitting with notice if too small."""
+        pat_h = len(PATTERN_42)
+        pat_w = len(PATTERN_42[0])
+        if self.height < pat_h + 2 or self.width < pat_w + 2:
+            print(
+                f"Notice: maze size ({self.width}x{self.height}) is too small "
+                "for the '42' pattern; pattern omitted.",
+                file=sys.stderr,
+            )
+            return set()
+
+        top = (self.height - pat_h) // 2
+        left = (self.width - pat_w) // 2
+        cells: Set[Cell] = set()
+        for r_off, pat_row in enumerate(PATTERN_42):
+            for c_off, bit in enumerate(pat_row):
+                if bit:
+                    cells.add((top + r_off, left + c_off))
+
+        if self.entry_cell in cells or self.exit_cell in cells:
+            print(
+                "Notice: entry or exit overlaps the centered '42' pattern; "
+                "pattern omitted.",
+                file=sys.stderr,
+            )
+            return set()
+        return cells
+
