@@ -453,3 +453,20 @@ class MazeGenerator:
                 candidates.append((direction, nxt))
         return candidates
 
+    def _loop_count(self) -> int:
+        """Compute cyclomatic complexity (edges - nodes + 1) of the maze."""
+        playable = [
+            (r, c)
+            for r in range(self.height)
+            for c in range(self.width)
+            if (r, c) not in self.blocked_cells
+        ]
+        edges = 0
+        for row, col in playable:
+            for direction in (Direction.EAST, Direction.SOUTH):
+                if not (self.grid[row][col] & int(direction)):
+                    dr, dc = direction.step
+                    if self._in_bounds(row + dr, col + dc):
+                        edges += 1
+        return edges - len(playable) + 1
+
