@@ -470,3 +470,41 @@ class MazeGenerator:
                         edges += 1
         return edges - len(playable) + 1
 
+    def _braid_and_add_loops(self) -> None:
+        """Eliminate real dead-ends and guarantee at least two loops."""
+        playable = [
+            (r, c)
+            for r in range(self.height)
+            for c in range(self.width)
+            if (r, c) not in self.blocked_cells
+        ]
+        self._rng.shuffle(playable)
+
+        for cell in playable:
+            if self._open_passages_count(cell) != 1:
+                continue
+            candidates = self._closed_normal_neighbors(cell)
+            self._rng.shuffle(candidates)
+            # Prefer merging two dead-ends to reduce dead-end count faster.
+            candidates.sort(
+                key=lambda item: self._open_passages_count(item[1]) != 1
+            )
+            for direction, nxt in candidates:
+                if not self._creates_open_area(cell, nxt, direction):
+                    self._remove_wall(cell, nxt, direction)
+                    self._record_step("braid", cell, nxt, direction, nxt)
+                    break
+
+        if self._loop_count() < 2:
+            self._rng.shuffle(playable)
+            for cell in playable:
+                if self._loop_count() >= 2:
+                    break
+                candidates = self._closed_normal_neighbors(cell)
+                self._rng.shuffle(candidates)
+                for direction, nxt in candidates:
+                    if not self._creates_open_area(cell, nxt, direction):
+                        self._remove_wall(cell, nxt, direction)
+                        self._record_step("braid", cell, nxt, direction, nxt)
+                        break
+
