@@ -343,3 +343,37 @@ def run_ascii_loop(
             break
 
 
+def _animate_ascii(
+    config: MazeConfig,
+    gen: MazeGenerator,
+    wall_idx: int,
+    pattern_idx: int,
+    clear_screen: bool = True,
+) -> None:
+    """Play a brief terminal animation of maze carving."""
+    if not gen.generation_steps:
+        gen.generate(record_steps=True)
+    preview = MazeGenerator(config)
+    preview.grid = [
+        [ALL_WALLS for _ in range(gen.width)] for _ in range(gen.height)
+    ]
+    steps = gen.generation_steps
+    stride = max(1, len(steps) // 45)
+    for idx, step in enumerate(steps):
+        if step.cell_b is not None and step.direction is not None:
+            r1, c1 = step.cell_a
+            r2, c2 = step.cell_b
+            preview.grid[r1][c1] &= ~int(step.direction)
+            preview.grid[r2][c2] &= ~int(step.direction.opposite)
+        if idx % stride == 0 or idx == len(steps) - 1:
+            if clear_screen:
+                print(ANSI_CLEAR, end="")
+            print(
+                render_ascii(
+                    preview,
+                    show_path=False,
+                    wall_color_idx=wall_idx,
+                    pattern_color_idx=pattern_idx,
+                )
+            )
+            time.sleep(0.025)
