@@ -508,3 +508,25 @@ class MazeGenerator:
                         self._record_step("braid", cell, nxt, direction, nxt)
                         break
 
+    def generate(self, record_steps: bool = False) -> None:
+        """Generate the maze according to the configured mode and algorithm."""
+        self.grid = [
+            [ALL_WALLS for _ in range(self.width)] for _ in range(self.height)
+        ]
+        self.generation_steps = []
+        self._record_steps = record_steps
+        try:
+            if self.algorithm == "kruskal":
+                self._run_kruskal()
+            elif self.algorithm == "prim":
+                self._run_prim()
+            else:
+                self._run_backtracker()
+
+            self._ensure_full_connectivity()
+            if not self.perfect:
+                self._braid_and_add_loops()
+        finally:
+            self._record_steps = False
+        self._generated = True
+
