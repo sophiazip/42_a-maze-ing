@@ -300,3 +300,29 @@ class MazeGenerator:
                         "backtrack", popped, stack[-1], None, stack[-1]
                     )
 
+    def _run_kruskal(self) -> None:
+        """Carve a spanning tree using randomized Kruskal with DSU."""
+        playable = [
+            (r, c)
+            for r in range(self.height)
+            for c in range(self.width)
+            if (r, c) not in self.blocked_cells
+        ]
+        dsu = _DisjointSetUnion(playable)
+        edges: List[Tuple[Cell, Cell, Direction]] = []
+        for row, col in playable:
+            for direction in (Direction.EAST, Direction.SOUTH):
+                dr, dc = direction.step
+                nr, nc = row + dr, col + dc
+                if (
+                    self._in_bounds(nr, nc)
+                    and (nr, nc) not in self.blocked_cells
+                ):
+                    edges.append(((row, col), (nr, nc), direction))
+
+        self._rng.shuffle(edges)
+        for cell_a, cell_b, direction in edges:
+            if dsu.union(cell_a, cell_b):
+                self._remove_wall(cell_a, cell_b, direction)
+                self._record_step("carve", cell_a, cell_b, direction, cell_b)
+
