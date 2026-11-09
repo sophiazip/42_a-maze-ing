@@ -174,3 +174,30 @@ class MazeGenerator:
         self._record_steps = False
         self._generated = False
 
+    def _validate_dimensions(self) -> None:
+        """Ensure maze dimensions and entry/exit coordinates are valid."""
+        if self.width <= 0 or self.height <= 0:
+            raise ValueError("Maze width and height must be positive.")
+        ex, ey = self.entry
+        xx, xy = self.exit
+        if not (0 <= ex < self.width and 0 <= ey < self.height):
+            raise ValueError("Entry coordinates are out of bounds.")
+        if not (0 <= xx < self.width and 0 <= xy < self.height):
+            raise ValueError("Exit coordinates are out of bounds.")
+        if self.entry == self.exit:
+            raise ValueError("Entry and exit must be distinct cells.")
+
+    @property
+    def entry_cell(self) -> Cell:
+        """Return entry position as internal (row, col)."""
+        return (self.entry[1], self.entry[0])
+
+    @property
+    def exit_cell(self) -> Cell:
+        """Return exit position as internal (row, col)."""
+        return (self.exit[1], self.exit[0])
+
+    def _in_bounds(self, row: int, col: int) -> bool:
+        """Return True when (row, col) lies within the grid."""
+        return 0 <= row < self.height and 0 <= col < self.width
+
