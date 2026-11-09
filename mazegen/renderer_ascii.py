@@ -232,3 +232,114 @@ def render_ascii(
     return "\n".join(lines)
 
 
+def run_ascii_loop(
+    config: MazeConfig,
+    generator: MazeGenerator,
+    clear_screen: bool = True,
+) -> None:
+    """Run the interactive terminal HUD and command loop."""
+    show_path = False
+    wall_idx = 0
+    pattern_idx = 0
+    rainbow = False
+    current_config = config
+    current_gen = generator
+
+    while True:
+        if clear_screen:
+            print(ANSI_CLEAR, end="")
+
+        if rainbow:
+            wall_idx = (wall_idx + 1) % len(WALL_THEMES)
+            pattern_idx = (pattern_idx + 1) % len(PATTERN_COLORS)
+
+        theme_name, wall_ansi, _ = WALL_THEMES[wall_idx % len(WALL_THEMES)]
+        mode_label = "PERFECT" if current_config.perfect else "BRAIDED"
+        steps = len(current_gen.shortest_path())
+        seed_label = (
+            str(current_config.seed)
+            if current_config.seed is not None
+            else "rand"
+        )
+        rainbow_tag = " [RAINBOW]" if rainbow else ""
+        print(
+            f"{ANSI_BOLD}{wall_ansi}A-MAZE-ING{ANSI_RESET}  "
+            f"{ANSI_DIM}|{ANSI_RESET} {current_config.width}x"
+            f"{current_config.height} "
+            f"{ANSI_DIM}|{ANSI_RESET} {mode_label} "
+            f"{ANSI_DIM}|{ANSI_RESET} {current_config.algorithm} "
+            f"{ANSI_DIM}|{ANSI_RESET} seed:{seed_label} "
+            f"{ANSI_DIM}|{ANSI_RESET} path:{steps} "
+            f"{ANSI_DIM}|{ANSI_RESET} {theme_name}{rainbow_tag}"
+        )
+        print(
+            render_ascii(
+                current_gen,
+                show_path=show_path,
+                wall_color_idx=wall_idx,
+                pattern_color_idx=pattern_idx,
+            )
+        )
+        print(
+            f"\n{COLOR_ENTRY}\u25c6 Entry{ANSI_RESET}  "
+            f"{COLOR_EXIT}\u2605 Exit{ANSI_RESET}  "
+            f"{ANSI_DIM}[1/r] Regen  [2/p] Path  [3/c] Theme  "
+            f"[t] 42  [b] Rainbow  [a] Algo  [e] Pts  [v] Animate  "
+            f"[4/q] Quit{ANSI_RESET}"
+        )
+        try:
+            choice = input("Choice: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+
+        if choice in {"1", "r"}:
+            new_seed: Optional[int] = random.randrange(1_000_000)
+            current_config = replace(current_config, seed=new_seed)
+            current_gen = MazeGenerator(current_config)
+            current_gen.generate(record_steps=True)
+            current_gen.write_output(current_config.output_file)
+        elif choice in {"2", "p"}:
+            show_path = not show_path
+        elif choice in {"3", "c"}:
+            rainbow = False
+            wall_idx = (wall_idx + 1) % len(WALL_THEMES)
+        elif choice == "t":
+            rainbow = False
+            pattern_idx = (pattern_idx + 1) % len(PATTERN_COLORS)
+        elif choice == "b":
+            rainbow = not rainbow
+        elif choice == "a":
+            cur_idx = ALGORITHMS.index(current_config.algorithm)
+            next_algo = ALGORITHMS[(cur_idx + 1) % len(ALGORITHMS)]
+            current_config = replace(current_config, algorithm=next_algo)
+            current_gen = MazeGenerator(current_config)
+            current_gen.generate(record_steps=True)
+            current_gen.write_output(current_config.output_file)
+        elif choice == "e":
+            entry_pt, exit_pt = pick_random_endpoints(
+                current_config.width,
+                current_config.height,
+                current_gen.blocked_cells,
+            )
+            current_config = replace(
+                current_config,
+                entry=entry_pt,
+                exit=exit_pt,
+                seed=random.randrange(1_000_000),
+            )
+            current_gen = MazeGenerator(current_config)
+            current_gen.generate(record_steps=True)
+            current_gen.write_output(current_config.output_file)
+        elif choice == "v":
+            _animate_ascii(
+                current_config,
+                current_gen,
+                wall_idx,
+                pattern_idx,
+                clear_screen=clear_screen,
+            )
+        elif choice in {"4", "q"}:
+            break
+
+
