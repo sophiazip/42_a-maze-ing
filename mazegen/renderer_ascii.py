@@ -89,3 +89,17 @@ def _has_vertical_wall(gen: MazeGenerator, row: int, vc: int) -> bool:
     return bool(gen.grid[row][vc] & int(Direction.WEST))
 
 
+def _vertex_glyph(gen: MazeGenerator, vr: int, vc: int) -> str:
+    """Compute the exact heavy box-drawing junction at vertex (vr, vc)."""
+    mask = 0
+    if vr > 0 and _has_vertical_wall(gen, vr - 1, vc):
+        mask |= 1
+    if vc < gen.width and _has_horizontal_wall(gen, vr, vc):
+        mask |= 2
+    if vr < gen.height and _has_vertical_wall(gen, vr, vc):
+        mask |= 4
+    if vc > 0 and _has_horizontal_wall(gen, vr, vc - 1):
+        mask |= 8
+    return JUNCTION_GLYPHS[mask]
+
+
