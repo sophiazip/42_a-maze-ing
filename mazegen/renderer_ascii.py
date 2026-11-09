@@ -103,3 +103,30 @@ def _vertex_glyph(gen: MazeGenerator, vr: int, vc: int) -> str:
     return JUNCTION_GLYPHS[mask]
 
 
+def _render_horizontal_border(
+    gen: MazeGenerator,
+    vr: int,
+    wall_ansi: str,
+    path_ansi: str,
+    path_set: Set[Tuple[int, int]],
+    show_path: bool,
+) -> str:
+    """Render vertex row vr and horizontal wall segments between cells."""
+    parts: List[str] = []
+    for vc in range(gen.width + 1):
+        parts.append(f"{wall_ansi}{_vertex_glyph(gen, vr, vc)}{ANSI_RESET}")
+        if vc < gen.width:
+            if _has_horizontal_wall(gen, vr, vc):
+                parts.append(f"{wall_ansi}{H_WALL}{ANSI_RESET}")
+            elif (
+                show_path
+                and 0 < vr < gen.height
+                and (vr - 1, vc) in path_set
+                and (vr, vc) in path_set
+            ):
+                parts.append(f"{path_ansi}{PATH_BRIDGE_V}{ANSI_RESET}")
+            else:
+                parts.append("   ")
+    return "".join(parts)
+
+
