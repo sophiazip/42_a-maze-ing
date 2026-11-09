@@ -33,3 +33,14 @@ PATTERN_PALETTE: Tuple[Tuple[str, int, int], ...] = (
 )
 
 
+def _hsv_to_argb(hue: float, sat: float, val: float) -> int:
+    """Convert normalized HSV values to a 0xAARRGGBB integer."""
+    r, g, b = colorsys.hsv_to_rgb(hue % 1.0, sat, val)
+    return (
+        0xFF000000
+        | (int(r * 255) << 16)
+        | (int(g * 255) << 8)
+        | int(b * 255)
+    )
+
+
