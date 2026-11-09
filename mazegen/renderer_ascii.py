@@ -172,3 +172,63 @@ def _render_cell_row(
     return "".join(parts)
 
 
+def render_ascii(
+    generator: MazeGenerator,
+    *,
+    show_path: bool = False,
+    wall_color_idx: int = 0,
+    pattern_color_idx: int = 0,
+) -> str:
+    """Render the maze using seamless Unicode box-drawing walls.
+
+    Args:
+        generator: Generated MazeGenerator instance.
+        show_path: Whether to highlight the shortest path.
+        wall_color_idx: Index into WALL_THEMES.
+        pattern_color_idx: Index into PATTERN_COLORS.
+
+    Returns:
+        Multi-line ANSI string ready to print to a terminal.
+    """
+    _name, wall_ansi, path_ansi = WALL_THEMES[
+        wall_color_idx % len(WALL_THEMES)
+    ]
+    pattern_ansi = PATTERN_COLORS[
+        pattern_color_idx % len(PATTERN_COLORS)
+    ][1]
+
+    path_set: Set[Tuple[int, int]] = set()
+    if show_path:
+        path_set = {(y, x) for x, y in generator.shortest_path_coords()}
+
+    lines: List[str] = []
+    for r in range(generator.height):
+        lines.append(
+            _render_horizontal_border(
+                generator, r, wall_ansi, path_ansi, path_set, show_path
+            )
+        )
+        lines.append(
+            _render_cell_row(
+                generator,
+                r,
+                wall_ansi,
+                path_ansi,
+                pattern_ansi,
+                path_set,
+                show_path,
+            )
+        )
+    lines.append(
+        _render_horizontal_border(
+            generator,
+            generator.height,
+            wall_ansi,
+            path_ansi,
+            path_set,
+            show_path,
+        )
+    )
+    return "\n".join(lines)
+
+
