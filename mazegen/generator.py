@@ -262,3 +262,14 @@ class MazeGenerator:
         self.grid[r1][c1] &= ~int(direction)
         self.grid[r2][c2] &= ~int(direction.opposite)
 
+    def _neighbors(self, cell: Cell) -> List[Tuple[Direction, Cell]]:
+        """Return in-bounds non-blocked neighbours with their directions."""
+        row, col = cell
+        result: List[Tuple[Direction, Cell]] = []
+        for direction in Direction:
+            dr, dc = direction.step
+            nr, nc = row + dr, col + dc
+            if self._in_bounds(nr, nc) and (nr, nc) not in self.blocked_cells:
+                result.append((direction, (nr, nc)))
+        return result
+
