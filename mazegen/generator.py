@@ -594,3 +594,22 @@ class MazeGenerator:
             coords.append((x, y))
         return coords
 
+    def to_hex_rows(self) -> List[str]:
+        """Serialize the maze grid as uppercase hexadecimal strings."""
+        return [
+            "".join(f"{cell:X}" for cell in row)
+            for row in self.grid
+        ]
+
+    def write_output(self, filepath: str, path: Optional[str] = None) -> None:
+        """Write the hexadecimal grid, coordinates, and shortest path."""
+        route = self.shortest_path() if path is None else path
+        lines = self.to_hex_rows()
+        lines.append("")
+        lines.append(f"{self.entry[0]},{self.entry[1]}")
+        lines.append(f"{self.exit[0]},{self.exit[1]}")
+        lines.append(route)
+        with open(filepath, "w", encoding="utf-8") as stream:
+            stream.write("\n".join(lines) + "\n")
+
+
