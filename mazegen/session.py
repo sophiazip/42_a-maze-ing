@@ -44,3 +44,40 @@ def _hsv_to_argb(hue: float, sat: float, val: float) -> int:
     )
 
 
+class MazeSession:
+    """Mutable presentation state for the graphical maze window."""
+
+    def __init__(
+        self,
+        config: MazeConfig,
+        generator: MazeGenerator,
+        show_path: bool = True,
+    ) -> None:
+        """Store configuration, generator, and visual/animation toggles."""
+        self.config = config
+        self.generator = generator
+        self.show_path = show_path
+        self.wall_color_index = 0
+        self.pattern_color_index = 0
+        self.rainbow = False
+        self.rainbow_phase = 0.0
+
+        self.anim_phase = "idle"
+        self.anim_grid: List[List[int]] = []
+        self.carve_idx = 0
+        self.carved_cells: Set[Cell] = set()
+        self.carve_glow: Dict[Cell, int] = {}
+        self.active_cell: Optional[Cell] = None
+
+        self.solve_explored: List[Cell] = []
+        self.solve_path: List[Cell] = []
+        self.solve_idx = 0
+        self.solve_visited: Set[Cell] = set()
+        self.solve_glow: Dict[Cell, int] = {}
+        self.trace_idx = 0
+        self.celebrate_ticks = 0
+
+        if generator.generation_steps:
+            self.start_carve_animation()
+
+    @property
