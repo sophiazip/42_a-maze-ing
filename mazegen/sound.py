@@ -143,3 +143,35 @@ class ChiptunePlayer:
             )
             self._thread.start()
 
+    def _submit_pcm(self, data: bytes, priority: bool = False) -> None:
+        """Load PCM into the active buffer without queueing latency."""
+        if self._closed or self.muted or not self.available:
+            return
+        now = time.monotonic()
+        with self._lock:
+            if not priority and now < self._priority_until:
+                return
+            self._active_buf = bytearray(data)
+            if priority:
+                dur = len(data) / (SAMPLE_RATE * 2)
+                self._priority_until = now + dur
+
+    def _next_frame(self) -> bytes:
+        """Pop one fixed 20ms PCM frame, padding with silence if idle."""
+        if self.muted:
+            with self._lock:
+                self._active_buf.clear()
+            return SILENCE_FRAME
+        with self._lock:
+            if not self._active_buf:
+                return SILENCE_FRAME
+            if len(self._active_buf) >= FRAME_BYTES:
+                frame = bytes(self._active_buf[:FRAME_BYTES])
+                del self._active_buf[:FRAME_BYTES]
+                return frame
+            frame = bytes(self._active_buf) + (
+                b"\x00" * (FRAME_BYTES - len(self._active_buf))
+            )
+            self._active_buf.clear()
+            return frame
+
