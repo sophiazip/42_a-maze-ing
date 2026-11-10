@@ -35,3 +35,15 @@ COLOR_TEXT = 0xFFE2E8F0
 COLOR_TEXT_DIM = 0xFF94A3B8
 COLOR_TEXT_ACCENT = 0xFF38BDF8
 
+KEYS_REGEN = (49, 65457, 114, 82)   # 1, KP_1, r, R
+KEYS_PATH = (50, 65458, 112, 80)    # 2, KP_2, p, P
+KEYS_COLOR = (51, 65459, 99, 67)    # 3, KP_3, c, C
+KEYS_PATTERN = (116, 84)            # t, T
+KEYS_RAINBOW = (98, 66)             # b, B
+KEYS_ALGO = (97, 65)                # a, A
+KEYS_ENDPOINTS = (101, 69)          # e, E
+KEYS_MUTE = (109, 77)               # m, M
+KEYS_SPACE = (32,)                  # Space
+KEYS_QUIT = (52, 65460, 113, 81, 65307)  # 4, KP_4, q, Q, Esc
+
+
