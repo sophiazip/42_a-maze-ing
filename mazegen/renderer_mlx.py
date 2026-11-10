@@ -189,3 +189,26 @@ class MazeWindow:
         if mask & int(Direction.EAST):
             self._fill_rect(x + s - t, y, t, s, wall_color)
 
+    def _draw_path_ribbon(
+        self,
+        ordered: List[Tuple[int, int]],
+        path_color: int,
+    ) -> None:
+        """Draw a continuous ribbon connecting cells on the shortest path."""
+        if len(ordered) < 2:
+            return
+        ribbon = max(4, self.cell // 3)
+        half = ribbon // 2
+        for idx in range(len(ordered) - 1):
+            r1, c1 = ordered[idx]
+            r2, c2 = ordered[idx + 1]
+            cx1 = self.maze_x + c1 * self.cell + self.cell // 2
+            cy1 = self.maze_y + r1 * self.cell + self.cell // 2
+            cx2 = self.maze_x + c2 * self.cell + self.cell // 2
+            cy2 = self.maze_y + r2 * self.cell + self.cell // 2
+            x0 = min(cx1, cx2) - half
+            y0 = min(cy1, cy2) - half
+            w = abs(cx2 - cx1) + ribbon
+            h = abs(cy2 - cy1) + ribbon
+            self._fill_rect(x0, y0, w, h, path_color)
+
