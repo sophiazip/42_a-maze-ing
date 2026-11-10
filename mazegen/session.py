@@ -177,3 +177,44 @@ class MazeSession:
         self.generator.write_output(self.config.output_file)
         self.start_carve_animation()
 
+    def randomize_endpoints(self, seed: Optional[int] = None) -> None:
+        """Pick random entry and exit coordinates and regenerate."""
+        rng = random.Random(seed)
+        entry_pt, exit_pt = pick_random_endpoints(
+            self.config.width,
+            self.config.height,
+            self.generator.blocked_cells,
+            rng=rng,
+        )
+        new_seed = seed if seed is not None else random.randrange(1_000_000)
+        self.config = replace(
+            self.config, entry=entry_pt, exit=exit_pt, seed=new_seed
+        )
+        self.generator = MazeGenerator(self.config)
+        self.generator.generate(record_steps=True)
+        self.generator.write_output(self.config.output_file)
+        self.start_carve_animation()
+
+    @property
+    def is_animating(self) -> bool:
+        """Return True while generation or solver animation is playing."""
+        return self.anim_phase != "idle"
+
+    @property
+    def phase_label(self) -> str:
+        """Return short HUD label for the current animation phase."""
+        labels = {
+            "carving": "CARVING",
+            "solving": "SOLVING",
+            "tracing": "LOCKING",
+            "celebrate": "SOLVED!",
+        }
+        return labels.get(self.anim_phase, "")
+
+    @property
+    def display_grid(self) -> List[List[int]]:
+        """Return the grid to draw (animated carving buffer or final)."""
+        if self.anim_phase == "carving" and self.anim_grid:
+            return self.anim_grid
+        return self.generator.grid
+
