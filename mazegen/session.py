@@ -122,3 +122,24 @@ class MazeSession:
             return _hsv_to_argb(self.rainbow_phase + 0.33, 0.80, 0.72)
         return PATTERN_PALETTE[self.pattern_color_index][2]
 
+    def toggle_path(self) -> None:
+        """Toggle shortest path visibility and animate solver on reveal."""
+        self.show_path = not self.show_path
+        if self.show_path and self.anim_phase == "idle":
+            self.start_solve_animation()
+        elif not self.show_path and self.anim_phase in (
+            "solving", "tracing", "celebrate"
+        ):
+            self.anim_phase = "idle"
+            self.active_cell = None
+            self.solve_visited.clear()
+            self.solve_glow.clear()
+
+    def toggle_rainbow(self) -> None:
+        """Toggle animated rainbow color cycling."""
+        self.rainbow = not self.rainbow
+
+    def advance_rainbow(self, delta: float = 0.02) -> None:
+        """Advance the rainbow hue phase."""
+        self.rainbow_phase = (self.rainbow_phase + delta) % 1.0
+
