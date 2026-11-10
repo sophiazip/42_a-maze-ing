@@ -218,3 +218,41 @@ class MazeSession:
             return self.anim_grid
         return self.generator.grid
 
+    def start_carve_animation(self) -> None:
+        """Reset playback to animate maze carving from a closed grid."""
+        gen = self.generator
+        self.anim_grid = [
+            [ALL_WALLS for _ in range(gen.width)] for _ in range(gen.height)
+        ]
+        self.carve_idx = 0
+        self.carved_cells = {gen.entry_cell}
+        self.carve_glow = {gen.entry_cell: 8}
+        self.active_cell = gen.entry_cell
+        self.solve_explored = []
+        self.solve_path = []
+        self.solve_idx = 0
+        self.solve_visited.clear()
+        self.solve_glow.clear()
+        self.trace_idx = 0
+        self.celebrate_ticks = 0
+        if gen.generation_steps:
+            self.anim_phase = "carving"
+        elif self.show_path:
+            self.start_solve_animation()
+        else:
+            self.anim_phase = "idle"
+            self.active_cell = None
+
+    def start_solve_animation(self) -> None:
+        """Prepare BFS wavefront and shortest-path lock-in playback."""
+        explored, path = self.generator.solve_with_trace()
+        self.solve_explored = explored
+        self.solve_path = path
+        self.solve_idx = 0
+        self.solve_visited.clear()
+        self.solve_glow.clear()
+        self.trace_idx = 0
+        self.celebrate_ticks = 0
+        self.active_cell = self.generator.entry_cell
+        self.anim_phase = "solving"
+
