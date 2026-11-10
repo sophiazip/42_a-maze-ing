@@ -285,3 +285,71 @@ class MazeSession:
         for cell in expired:
             del glow_map[cell]
 
+    def step_animation(self) -> bool:
+        """Advance active animation by one tick; return True if changed."""
+        if self.anim_phase == "idle":
+            return False
+
+        self._decay_glow(self.carve_glow)
+        self._decay_glow(self.solve_glow)
+
+        if self.anim_phase == "carving":
+            steps = self.generator.generation_steps
+            batch = max(1, len(steps) // 140)
+            end_idx = min(len(steps), self.carve_idx + batch)
+            for idx in range(self.carve_idx, end_idx):
+                step = steps[idx]
+                if step.cell_b is not None and step.direction is not None:
+                    r1, c1 = step.cell_a
+                    r2, c2 = step.cell_b
+                    self.anim_grid[r1][c1] &= ~int(step.direction)
+                    self.anim_grid[r2][c2] &= ~int(step.direction.opposite)
+                    self.carved_cells.add(step.cell_a)
+                    self.carved_cells.add(step.cell_b)
+                    self.carve_glow[step.cell_b] = 8
+                self.carve_glow[step.active] = 8
+                self.active_cell = step.active
+            self.carve_idx = end_idx
+            if self.carve_idx >= len(steps):
+                if self.show_path:
+                    self.start_solve_animation()
+                else:
+                    self.skip_animation()
+            return True
+
+        if self.anim_phase == "solving":
+            batch = max(1, len(self.solve_explored) // 90)
+            end_idx = min(len(self.solve_explored), self.solve_idx + batch)
+            for idx in range(self.solve_idx, end_idx):
+                cell = self.solve_explored[idx]
+                self.solve_visited.add(cell)
+                self.solve_glow[cell] = 7
+                self.active_cell = cell
+            self.solve_idx = end_idx
+            if self.solve_idx >= len(self.solve_explored):
+                self.anim_phase = "tracing"
+                self.trace_idx = 1 if self.solve_path else 0
+                self.active_cell = (
+                    self.solve_path[0] if self.solve_path else None
+                )
+            return True
+
+        if self.anim_phase == "tracing":
+            batch = max(1, len(self.solve_path) // 35)
+            self.trace_idx = min(len(self.solve_path), self.trace_idx + batch)
+            if self.trace_idx > 0:
+                self.active_cell = self.solve_path[self.trace_idx - 1]
+            if self.trace_idx >= len(self.solve_path):
+                self.anim_phase = "celebrate"
+                self.celebrate_ticks = 12
+                self.active_cell = self.generator.exit_cell
+            return True
+
+        if self.anim_phase == "celebrate":
+            self.celebrate_ticks -= 1
+            if self.celebrate_ticks <= 0:
+                self.skip_animation()
+            return True
+
+        return False
+
