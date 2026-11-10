@@ -175,3 +175,19 @@ class ChiptunePlayer:
             self._active_buf.clear()
             return frame
 
+    def _open_stream(self) -> Optional[subprocess.Popen[bytes]]:
+        """Spawn the low-latency streaming audio subprocess."""
+        if self._cmd is None:
+            return None
+        try:
+            return subprocess.Popen(
+                self._cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            self.available = False
+            self.muted = True
+            return None
+
