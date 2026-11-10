@@ -168,3 +168,24 @@ class MazeWindow:
             offset = y * self.size_line + x_start * 4
             self.pixels[offset: offset + row_len] = row_bytes
 
+    def _draw_cell_walls(
+        self,
+        row: int,
+        col: int,
+        mask: int,
+        wall_color: int,
+    ) -> None:
+        """Draw the closed walls around a single cell."""
+        x = self.maze_x + col * self.cell
+        y = self.maze_y + row * self.cell
+        t = self.WALL_THICKNESS
+        s = self.cell
+        if mask & int(Direction.NORTH):
+            self._fill_rect(x, y, s, t, wall_color)
+        if mask & int(Direction.SOUTH):
+            self._fill_rect(x, y + s - t, s, t, wall_color)
+        if mask & int(Direction.WEST):
+            self._fill_rect(x, y, t, s, wall_color)
+        if mask & int(Direction.EAST):
+            self._fill_rect(x + s - t, y, t, s, wall_color)
+
