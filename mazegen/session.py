@@ -353,3 +353,18 @@ class MazeSession:
 
         return False
 
+    def path_cell_set(self) -> Set[Tuple[int, int]]:
+        """Return (row, col) cells on the visible portion of shortest path."""
+        if not self.show_path or self.anim_phase in ("carving", "solving"):
+            return set()
+        if self.anim_phase == "tracing":
+            return set(self.solve_path[:self.trace_idx])
+        return {(y, x) for x, y in self.generator.shortest_path_coords()}
+
+    def path_coords_ordered(self) -> List[Tuple[int, int]]:
+        """Return ordered (row, col) cells along the visible shortest path."""
+        if not self.show_path or self.anim_phase in ("carving", "solving"):
+            return []
+        if self.anim_phase == "tracing":
+            return list(self.solve_path[:self.trace_idx])
+        return [(y, x) for x, y in self.generator.shortest_path_coords()]
