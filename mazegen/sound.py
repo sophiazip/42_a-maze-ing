@@ -234,3 +234,20 @@ class ChiptunePlayer:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
+    def clear(self) -> None:
+        """Stop any currently playing note immediately."""
+        with self._lock:
+            self._active_buf.clear()
+            self._priority_until = 0.0
+
+    def toggle_mute(self) -> bool:
+        """Toggle mute state and return the new muted boolean."""
+        if not self.available:
+            return True
+        self.muted = not self.muted
+        if self.muted:
+            self.clear()
+        else:
+            self.play_ui_click()
+        return self.muted
+
