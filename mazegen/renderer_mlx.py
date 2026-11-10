@@ -239,3 +239,27 @@ class MazeWindow:
             inner_color,
         )
 
+    def _draw_hud_bars(self) -> None:
+        """Draw top status bar and bottom control bar chrome."""
+        self._fill_rect(0, 0, self.win_w, self.TOP_BAR, COLOR_HUD)
+        self._fill_rect(0, self.TOP_BAR - 1, self.win_w, 1, COLOR_HUD_BORDER)
+
+        footer_y = self.win_h - self.BOTTOM_BAR
+        self._fill_rect(0, footer_y, self.win_w, self.BOTTOM_BAR, COLOR_HUD)
+        self._fill_rect(0, footer_y, self.win_w, 1, COLOR_HUD_BORDER)
+
+        swatch_size = 16
+        swatch_x = self.win_w - self.PAD - swatch_size
+        swatch_y = footer_y + (self.BOTTOM_BAR - swatch_size) // 2
+        self._fill_rect(
+            swatch_x - 1,
+            swatch_y - 1,
+            swatch_size + 2,
+            swatch_size + 2,
+            COLOR_HUD_BORDER,
+        )
+        self._fill_rect(
+            swatch_x, swatch_y, swatch_size, swatch_size,
+            self.session.wall_color,
+        )
+
