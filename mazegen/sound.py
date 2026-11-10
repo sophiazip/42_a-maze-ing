@@ -302,3 +302,22 @@ class ChiptunePlayer:
         )
         self._submit_pcm(tone)
 
+    def play_victory(self) -> None:
+        """Play the 8-bit victory fanfare when the exit is reached."""
+        self._submit_pcm(synthesize_victory_fanfare(), priority=True)
+
+    def play_ui_click(self) -> None:
+        """Play a crisp 8-bit UI confirmation chirp."""
+        tone = synthesize_tone(
+            659.25, 0.028, wave="square25", volume=0.16, end_freq=880.0
+        )
+        self._submit_pcm(tone, priority=True)
+
+    def close(self) -> None:
+        """Shut down the background audio thread and player process."""
+        if self._closed:
+            return
+        self._closed = True
+        self.clear()
+        if self._thread is not None:
+            self._thread.join(timeout=0.5)
