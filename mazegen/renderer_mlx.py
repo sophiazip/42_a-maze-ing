@@ -263,3 +263,130 @@ class MazeWindow:
             self.session.wall_color,
         )
 
+    def render(self) -> None:
+        """Redraw the HUD, floor checkerboard, walls, path, and markers."""
+        if self._closed:
+            return
+        self._fill_rect(0, 0, self.win_w, self.win_h, COLOR_BG)
+        self._draw_hud_bars()
+
+        gen = self.session.generator
+        grid = self.session.display_grid
+        wall_color = self.session.wall_color
+        path_set = self.session.path_cell_set()
+        ordered_path = self.session.path_coords_ordered()
+        entry_rc = gen.entry_cell
+        exit_rc = gen.exit_cell
+        carving = self.session.anim_phase == "carving"
+        celebrate_flash = (
+            self.session.anim_phase == "celebrate"
+            and self.session.celebrate_ticks % 2 == 0
+        )
+
+        for r in range(gen.height):
+            for c in range(gen.width):
+                x = self.maze_x + c * self.cell
+                y = self.maze_y + r * self.cell
+                rc = (r, c)
+                if rc in gen.blocked_cells:
+                    self._fill_rect(
+                        x, y, self.cell, self.cell, self.session.pattern_color
+                    )
+                    pad = max(3, self.cell // 4)
+                    self._fill_rect(
+                        x + pad,
+                        y + pad,
+                        max(2, self.cell - 2 * pad),
+                        max(2, self.cell - 2 * pad),
+                        self.session.pattern_accent,
+                    )
+                elif rc in path_set:
+                    tint = self.session.path_tint
+                    if celebrate_flash:
+                        tint = _blend_argb(tint, self.session.path_color, 0.45)
+                    self._fill_rect(x, y, self.cell, self.cell, tint)
+                else:
+                    floor = (
+                        COLOR_FLOOR_A if (r + c) % 2 == 0 else COLOR_FLOOR_B
+                    )
+                    if carving and rc not in self.session.carved_cells:
+                        floor = COLOR_FLOOR_UNCARVED
+                    elif rc in self.session.solve_glow:
+                        floor = _blend_argb(
+                            COLOR_SOLVE_VISITED,
+                            self.session.path_color,
+                            self.session.solve_glow[rc] / 7.0,
+                        )
+                    elif rc in self.session.solve_visited:
+                        floor = COLOR_SOLVE_VISITED
+                    if rc in self.session.carve_glow:
+                        floor = _blend_argb(
+                            floor,
+                            wall_color,
+                            self.session.carve_glow[rc] / 10.0,
+                        )
+                    self._fill_rect(x, y, self.cell, self.cell, floor)
+
+        ribbon_color = (
+            _blend_argb(self.session.path_color, COLOR_CURSOR, 0.55)
+            if celebrate_flash
+            else self.session.path_color
+        )
+        self._draw_path_ribbon(ordered_path, ribbon_color)
+        self._draw_beacon(
+            entry_rc[0], entry_rc[1], COLOR_ENTRY_OUTER, COLOR_ENTRY_INNER
+        )
+        self._draw_beacon(
+            exit_rc[0], exit_rc[1], COLOR_EXIT_OUTER, COLOR_EXIT_INNER
+        )
+        if (
+            self.session.active_cell is not None
+            and self.session.anim_phase in ("carving", "solving", "tracing")
+        ):
+            ar, ac = self.session.active_cell
+            self._draw_beacon(ar, ac, self.session.path_color, COLOR_CURSOR)
+
+        for r in range(gen.height):
+            for c in range(gen.width):
+                self._draw_cell_walls(r, c, grid[r][c], wall_color)
+
+        self.mlx.mlx_put_image_to_window(
+            self.mlx_ptr, self.win, self.img, 0, 0
+        )
+
+        cfg = self.session.config
+        mode = "PERFECT" if cfg.perfect else "BRAIDED"
+        self.mlx.mlx_string_put(
+            self.mlx_ptr, self.win, self.PAD, 13,
+            COLOR_TEXT_ACCENT, "A-MAZE-ING",
+        )
+        phase = self.session.phase_label
+        meta_raw = (
+            f"{phase} | {cfg.width}x{cfg.height} | {cfg.algorithm} | {mode}"
+            if phase
+            else f"{cfg.width}x{cfg.height} | {cfg.algorithm} | {mode}"
+        )
+        meta = self._fit(
+            meta_raw,
+            self.win_w - 2 * self.PAD - 130,
+        )
+        meta_x = self.win_w - self.PAD - len(meta) * self.FONT_WIDTH
+        self.mlx.mlx_string_put(
+            self.mlx_ptr, self.win, meta_x, 13, COLOR_TEXT_DIM, meta
+        )
+
+        footer_y = self.win_h - self.BOTTOM_BAR + 13
+        space_lbl = "Spc:Skp" if self.session.is_animating else "Spc:Ply"
+        mute_lbl = "M:Mut" if self.sound.muted else "M:Snd"
+        controls = self._fit(
+            f"1:Reg 2:Pth 3:Col T:42 B:Rbw A:Alg E:Pts "
+            f"{mute_lbl} {space_lbl} 4:Q",
+            self.win_w - 2 * self.PAD - 36,
+        )
+        self.mlx.mlx_string_put(
+            self.mlx_ptr, self.win, self.PAD, footer_y, COLOR_TEXT, controls
+        )
+
+        self.mlx.mlx_do_sync(self.mlx_ptr)
+        self._dirty = False
+
