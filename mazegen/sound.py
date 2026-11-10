@@ -120,3 +120,26 @@ def _find_player_cmd() -> Optional[List[str]]:
     return None
 
 
+class ChiptunePlayer:
+    """Continuous low-latency 8-bit audio mixer for animation events."""
+
+    def __init__(self, enabled: bool = True) -> None:
+        """Initialize the continuous PCM mixer thread."""
+        self._cmd = _find_player_cmd() if enabled else None
+        self.available = self._cmd is not None
+        self.muted = not self.available
+        self._closed = False
+        self._lock = threading.Lock()
+        self._active_buf = bytearray()
+        self._priority_until = 0.0
+        self._proc: Optional[subprocess.Popen[bytes]] = None
+        self._thread: Optional[threading.Thread] = None
+
+        if self.available:
+            self._thread = threading.Thread(
+                target=self._worker,
+                name="mazegen-8bit-audio",
+                daemon=True,
+            )
+            self._thread.start()
+
