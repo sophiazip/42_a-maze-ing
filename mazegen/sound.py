@@ -91,3 +91,32 @@ def synthesize_victory_fanfare() -> bytes:
     return synthesize_sequence(notes, volume=0.24)
 
 
+def _find_player_cmd() -> Optional[List[str]]:
+    """Return a low-latency streaming raw PCM CLI player command."""
+    paplay = shutil.which("paplay")
+    if paplay is not None:
+        return [
+            paplay,
+            "--raw",
+            f"--rate={SAMPLE_RATE}",
+            "--channels=1",
+            "--format=s16le",
+            "--latency-msec=40",
+            "--process-time-msec=15",
+        ]
+    pw_play = shutil.which("pw-play")
+    if pw_play is not None:
+        return [
+            pw_play,
+            "--raw",
+            "--rate",
+            str(SAMPLE_RATE),
+            "--channels",
+            "1",
+            "--format",
+            "s16",
+            "-",
+        ]
+    return None
+
+
