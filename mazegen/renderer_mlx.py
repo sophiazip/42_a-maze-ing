@@ -58,3 +58,70 @@ def _blend_argb(c1: int, c2: int, t: float) -> int:
     return 0xFF000000 | (r << 16) | (g << 8) | b
 
 
+class MazeWindow:
+    """Interactive X11 window powered by MiniLibX."""
+
+    PAD = 20
+    TOP_BAR = 44
+    BOTTOM_BAR = 44
+    MIN_CELL = 10
+    MAX_CELL = 38
+    MIN_WIN_WIDTH = 660
+    WALL_THICKNESS = 2
+    FONT_WIDTH = 11
+
+    def __init__(self, config: MazeConfig, generator: MazeGenerator) -> None:
+        """Initialize MLX, allocate image buffer, and render first frame."""
+        if not MLX_AVAILABLE or _mlx is None:
+            raise RuntimeError(
+                "MLX is not installed. Install mlx-2.2-py3-none-any.whl "
+                "or run in terminal mode (--display ascii)."
+            )
+
+        self.session = MazeSession(config, generator)
+        self.sound = ChiptunePlayer()
+        self._closed = False
+        self._dirty = False
+        now = time.monotonic()
+        self._last_rainbow_tick = now
+        self._last_anim_tick = now
+        self._last_sound_tick = now
+        self.mlx: Any = _mlx.Mlx()
+        self.mlx_ptr: Any = self.mlx.mlx_init()
+        if not self.mlx_ptr:
+            raise RuntimeError(
+                "Could not initialize MLX display (check DISPLAY)."
+            )
+
+        self.cell = self._compute_cell_size()
+        self.maze_w = config.width * self.cell
+        self.maze_h = config.height * self.cell
+        self.win_w = max(self.maze_w + 2 * self.PAD, self.MIN_WIN_WIDTH)
+        self.win_h = (
+            self.maze_h + self.TOP_BAR + self.BOTTOM_BAR + 2 * self.PAD
+        )
+        self.maze_x = (self.win_w - self.maze_w) // 2
+        self.maze_y = self.TOP_BAR + self.PAD
+
+        self.win: Any = self.mlx.mlx_new_window(
+            self.mlx_ptr, self.win_w, self.win_h, "A-Maze-ing"
+        )
+        if not self.win:
+            raise RuntimeError("MLX failed to create the application window.")
+
+        self.img: Any = self.mlx.mlx_new_image(
+            self.mlx_ptr, self.win_w, self.win_h
+        )
+        data, bpp, size_line, _fmt = self.mlx.mlx_get_data_addr(self.img)
+        if bpp != 32:
+            raise RuntimeError(f"Unsupported MLX color depth: {bpp} bits.")
+        self.pixels: bytearray = data
+        self.size_line: int = size_line
+
+        self.mlx.mlx_do_key_autorepeatoff(self.mlx_ptr)
+        self.mlx.mlx_key_hook(self.win, self._on_key_press, self)
+        self.mlx.mlx_expose_hook(self.win, self._on_expose, self)
+        self.mlx.mlx_hook(self.win, 33, 0, self._on_close, self)
+        self.mlx.mlx_loop_hook(self.mlx_ptr, self._on_loop, self)
+        self.render()
+
