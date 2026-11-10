@@ -212,3 +212,30 @@ class MazeWindow:
             h = abs(cy2 - cy1) + ribbon
             self._fill_rect(x0, y0, w, h, path_color)
 
+    def _draw_beacon(
+        self,
+        row: int,
+        col: int,
+        outer_color: int,
+        inner_color: int,
+    ) -> None:
+        """Draw a concentric square beacon for entry or exit."""
+        x = self.maze_x + col * self.cell
+        y = self.maze_y + row * self.cell
+        outer_pad = max(3, self.cell // 6)
+        inner_pad = max(5, self.cell // 3)
+        self._fill_rect(
+            x + outer_pad,
+            y + outer_pad,
+            self.cell - 2 * outer_pad,
+            self.cell - 2 * outer_pad,
+            outer_color,
+        )
+        self._fill_rect(
+            x + inner_pad,
+            y + inner_pad,
+            max(2, self.cell - 2 * inner_pad),
+            max(2, self.cell - 2 * inner_pad),
+            inner_color,
+        )
+
