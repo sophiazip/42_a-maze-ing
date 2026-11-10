@@ -251,3 +251,54 @@ class ChiptunePlayer:
             self.play_ui_click()
         return self.muted
 
+    def play_carve(
+        self,
+        progress: float,
+        cell: Tuple[int, int],
+        backtrack: bool = False,
+    ) -> None:
+        """Play a short 8-bit blip reacting to maze carving."""
+        base_idx = (cell[0] * 3 + cell[1] * 5) % 8
+        lift = int(max(0.0, min(1.0, progress)) * 4)
+        idx = min(len(PENTATONIC_HZ) - 1, base_idx + lift)
+        if backtrack:
+            freq = PENTATONIC_HZ[max(0, idx - 3)] * 0.75
+            tone = synthesize_tone(
+                freq, 0.036, wave="triangle", volume=0.14
+            )
+        else:
+            freq = PENTATONIC_HZ[idx]
+            tone = synthesize_tone(
+                freq, 0.036, wave="square25", volume=0.15
+            )
+        self._submit_pcm(tone)
+
+    def play_solve(self, progress: float) -> None:
+        """Play a rising 8-bit radar pulse as BFS approaches the exit."""
+        clamped = max(0.0, min(1.0, progress))
+        idx = min(
+            len(PENTATONIC_HZ) - 1,
+            int(clamped * (len(PENTATONIC_HZ) - 1)),
+        )
+        freq = PENTATONIC_HZ[idx]
+        tone = synthesize_tone(
+            freq,
+            0.040,
+            wave="triangle",
+            volume=0.18,
+            end_freq=freq * (1.0 + 0.08 * math.sin(clamped * math.pi)),
+        )
+        self._submit_pcm(tone)
+
+    def play_trace(self, progress: float) -> None:
+        """Play an ascending lock-in note as the shortest path is drawn."""
+        clamped = max(0.0, min(1.0, progress))
+        idx = min(
+            len(PENTATONIC_HZ) - 1,
+            3 + int(clamped * (len(PENTATONIC_HZ) - 4)),
+        )
+        tone = synthesize_tone(
+            PENTATONIC_HZ[idx], 0.038, wave="square", volume=0.18
+        )
+        self._submit_pcm(tone)
+
