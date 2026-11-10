@@ -191,3 +191,46 @@ class ChiptunePlayer:
             self.muted = True
             return None
 
+    def _worker(self) -> None:
+        """Continuously feed 20ms PCM frames to prevent buffer underruns."""
+        proc = self._open_stream()
+        self._proc = proc
+        if proc is None or proc.stdin is None:
+            return
+        frame_sec = FRAME_MS / 1000.0
+        next_tick = time.monotonic()
+        try:
+            while not self._closed:
+                if proc.poll() is not None:
+                    break
+                frame = self._next_frame()
+                try:
+                    proc.stdin.write(frame)
+                    proc.stdin.flush()
+                except OSError:
+                    break
+                next_tick += frame_sec
+                now = time.monotonic()
+                delay = next_tick - now
+                if delay > 0.0:
+                    time.sleep(delay)
+                elif delay < -frame_sec * 3:
+                    next_tick = now
+        finally:
+            self._terminate_proc(proc)
+
+    @staticmethod
+    def _terminate_proc(proc: subprocess.Popen[bytes]) -> None:
+        """Close stdin and terminate the audio player subprocess cleanly."""
+        try:
+            if proc.stdin is not None:
+                proc.stdin.close()
+        except OSError:
+            pass
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
