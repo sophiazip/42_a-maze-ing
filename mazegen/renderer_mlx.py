@@ -125,3 +125,24 @@ class MazeWindow:
         self.mlx.mlx_loop_hook(self.mlx_ptr, self._on_loop, self)
         self.render()
 
+    def _compute_cell_size(self) -> int:
+        """Choose a cell pixel size that fits comfortably on screen."""
+        _rc, sw, sh = self.mlx.mlx_get_screen_size(self.mlx_ptr)
+        avail_w = max(320, int(sw * 0.85) - 2 * self.PAD)
+        avail_h = max(
+            240,
+            int(sh * 0.85) - self.TOP_BAR - self.BOTTOM_BAR - 2 * self.PAD,
+        )
+        fit_w = avail_w // self.session.config.width
+        fit_h = avail_h // self.session.config.height
+        return max(self.MIN_CELL, min(self.MAX_CELL, fit_w, fit_h))
+
+    def _fit(self, text: str, max_px: int) -> str:
+        """Truncate text so it never overflows max_px."""
+        limit = max(1, max_px // self.FONT_WIDTH)
+        if len(text) <= limit:
+            return text
+        if limit <= 3:
+            return text[:limit]
+        return text[:limit - 3] + "..."
+
