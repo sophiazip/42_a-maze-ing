@@ -146,3 +146,25 @@ class MazeWindow:
             return text[:limit]
         return text[:limit - 3] + "..."
 
+    def _fill_rect(
+        self,
+        x0: int,
+        y0: int,
+        width: int,
+        height: int,
+        color: int,
+    ) -> None:
+        """Fill a solid rectangle in the 32-bit BGRA image buffer."""
+        x_start = max(0, x0)
+        y_start = max(0, y0)
+        x_end = min(self.win_w, x0 + width)
+        y_end = min(self.win_h, y0 + height)
+        if x_start >= x_end or y_start >= y_end:
+            return
+        pixel_bytes = color.to_bytes(4, "little")
+        row_bytes = pixel_bytes * (x_end - x_start)
+        row_len = len(row_bytes)
+        for y in range(y_start, y_end):
+            offset = y * self.size_line + x_start * 4
+            self.pixels[offset: offset + row_len] = row_bytes
+
