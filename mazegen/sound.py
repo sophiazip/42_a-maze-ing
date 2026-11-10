@@ -24,3 +24,13 @@ PENTATONIC_HZ: Tuple[float, ...] = (
 )
 
 
+def _sample_wave(phase: float, wave: str) -> float:
+    """Return a normalized [-1.0, 1.0] sample for the requested 8-bit wave."""
+    frac = phase % 1.0
+    if wave == "square25":
+        return 1.0 if frac < 0.25 else -1.0
+    if wave == "triangle":
+        return 4.0 * abs(frac - 0.5) - 1.0
+    return 1.0 if frac < 0.5 else -1.0
+
+
