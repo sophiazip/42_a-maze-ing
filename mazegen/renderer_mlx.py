@@ -47,3 +47,14 @@ KEYS_SPACE = (32,)                  # Space
 KEYS_QUIT = (52, 65460, 113, 81, 65307)  # 4, KP_4, q, Q, Esc
 
 
+def _blend_argb(c1: int, c2: int, t: float) -> int:
+    """Linearly interpolate between two 0xAARRGGBB colors."""
+    clamped = max(0.0, min(1.0, t))
+    r1, g1, b1 = (c1 >> 16) & 0xFF, (c1 >> 8) & 0xFF, c1 & 0xFF
+    r2, g2, b2 = (c2 >> 16) & 0xFF, (c2 >> 8) & 0xFF, c2 & 0xFF
+    r = int(r1 + (r2 - r1) * clamped)
+    g = int(g1 + (g2 - g1) * clamped)
+    b = int(b1 + (b2 - b1) * clamped)
+    return 0xFF000000 | (r << 16) | (g << 8) | b
+
+
