@@ -256,3 +256,32 @@ class MazeSession:
         self.active_cell = self.generator.entry_cell
         self.anim_phase = "solving"
 
+    def replay_or_skip(self) -> None:
+        """Skip active animation to completion, or replay from start."""
+        if self.is_animating:
+            self.skip_animation()
+        elif self.generator.generation_steps:
+            self.start_carve_animation()
+        elif self.show_path:
+            self.start_solve_animation()
+
+    def skip_animation(self) -> None:
+        """Immediately finish any running animation."""
+        self.anim_phase = "idle"
+        self.anim_grid = []
+        self.carve_glow.clear()
+        self.solve_visited.clear()
+        self.solve_glow.clear()
+        self.active_cell = None
+
+    def _decay_glow(self, glow_map: Dict[Cell, int]) -> None:
+        """Decrement glow counters and prune faded cells."""
+        expired: List[Cell] = []
+        for cell, val in glow_map.items():
+            if val <= 1:
+                expired.append(cell)
+            else:
+                glow_map[cell] = val - 1
+        for cell in expired:
+            del glow_map[cell]
+
