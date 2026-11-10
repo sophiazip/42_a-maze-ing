@@ -34,3 +34,47 @@ def _sample_wave(phase: float, wave: str) -> float:
     return 1.0 if frac < 0.5 else -1.0
 
 
+def synthesize_tone(
+    freq: float,
+    duration_s: float,
+    wave: str = "square",
+    volume: float = 0.20,
+    end_freq: Optional[float] = None,
+) -> bytes:
+    """Synthesize a mono 16-bit signed PCM 8-bit tone with envelope."""
+    total_samples = max(1, int(SAMPLE_RATE * duration_s))
+    target_freq = freq if end_freq is None else end_freq
+    attack = max(1, int(total_samples * 0.06))
+    release = max(1, int(total_samples * 0.30))
+
+    pcm = bytearray(total_samples * 2)
+    phase = 0.0
+    for idx in range(total_samples):
+        t = idx / total_samples
+        cur_freq = freq + (target_freq - freq) * t
+        phase += cur_freq / SAMPLE_RATE
+
+        env = 1.0
+        if idx < attack:
+            env = idx / attack
+        elif idx > total_samples - release:
+            env = max(0.0, (total_samples - idx) / release)
+
+        amp = max(-1.0, min(1.0, _sample_wave(phase, wave) * env * volume))
+        sample_int = int(amp * 32767)
+        struct.pack_into("<h", pcm, idx * 2, sample_int)
+    return bytes(pcm)
+
+
+def synthesize_sequence(
+    notes: Sequence[Tuple[float, float, str]],
+    volume: float = 0.22,
+) -> bytes:
+    """Concatenate a sequence of (freq_hz, duration_s, wave) notes."""
+    chunks: List[bytes] = [
+        synthesize_tone(freq, dur, wave=wave, volume=volume)
+        for freq, dur, wave in notes
+    ]
+    return b"".join(chunks)
+
+
