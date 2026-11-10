@@ -157,3 +157,23 @@ class MazeSession:
             self.pattern_color_index + 1
         ) % len(PATTERN_PALETTE)
 
+    def cycle_algorithm(self) -> None:
+        """Switch to the next generation algorithm and regenerate."""
+        cur_idx = ALGORITHMS.index(self.config.algorithm)
+        next_algo = ALGORITHMS[(cur_idx + 1) % len(ALGORITHMS)]
+        self.config = replace(self.config, algorithm=next_algo)
+        self.generator = MazeGenerator(self.config)
+        self.generator.generate(record_steps=True)
+        self.generator.write_output(self.config.output_file)
+        self.start_carve_animation()
+
+    def regenerate(self, seed: Optional[int] = None) -> None:
+        """Generate a new maze and update the output file."""
+        if seed is None:
+            seed = random.randrange(1_000_000)
+        self.config = replace(self.config, seed=seed)
+        self.generator = MazeGenerator(self.config)
+        self.generator.generate(record_steps=True)
+        self.generator.write_output(self.config.output_file)
+        self.start_carve_animation()
+
