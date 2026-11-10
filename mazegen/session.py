@@ -81,3 +81,44 @@ class MazeSession:
             self.start_carve_animation()
 
     @property
+    def theme_name(self) -> str:
+        """Return the active theme name."""
+        if self.rainbow:
+            return "Rainbow"
+        return WALL_PALETTE[self.wall_color_index][0]
+
+    @property
+    def wall_color(self) -> int:
+        """Return the current 0xAARRGGBB wall color."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase, 0.85, 0.96)
+        return WALL_PALETTE[self.wall_color_index][1]
+
+    @property
+    def path_color(self) -> int:
+        """Return the current 0xAARRGGBB path ribbon color."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.55, 0.80, 0.96)
+        return WALL_PALETTE[self.wall_color_index][2]
+
+    @property
+    def path_tint(self) -> int:
+        """Return the current 0xAARRGGBB path cell tint color."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.55, 0.75, 0.24)
+        return WALL_PALETTE[self.wall_color_index][3]
+
+    @property
+    def pattern_color(self) -> int:
+        """Return the current 0xAARRGGBB fill color for '42' cells."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.33, 0.78, 0.42)
+        return PATTERN_PALETTE[self.pattern_color_index][1]
+
+    @property
+    def pattern_accent(self) -> int:
+        """Return the current 0xAARRGGBB inner bevel color for '42' cells."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.33, 0.80, 0.72)
+        return PATTERN_PALETTE[self.pattern_color_index][2]
+
