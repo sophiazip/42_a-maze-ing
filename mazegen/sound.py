@@ -78,3 +78,16 @@ def synthesize_sequence(
     return b"".join(chunks)
 
 
+def synthesize_victory_fanfare() -> bytes:
+    """Build an upbeat 8-bit arpeggio fanfare for reaching the maze exit."""
+    notes: Tuple[Tuple[float, float, str], ...] = (
+        (523.25, 0.065, "square25"),
+        (659.25, 0.065, "square25"),
+        (783.99, 0.065, "square25"),
+        (1046.50, 0.11, "square"),
+        (783.99, 0.065, "square25"),
+        (1046.50, 0.24, "square"),
+    )
+    return synthesize_sequence(notes, volume=0.24)
+
+
