@@ -143,3 +143,17 @@ class MazeSession:
         """Advance the rainbow hue phase."""
         self.rainbow_phase = (self.rainbow_phase + delta) % 1.0
 
+    def cycle_wall_color(self) -> None:
+        """Advance to the next color theme."""
+        self.rainbow = False
+        self.wall_color_index = (
+            self.wall_color_index + 1
+        ) % len(WALL_PALETTE)
+
+    def cycle_pattern_color(self) -> None:
+        """Advance to the next '42' pattern color."""
+        self.rainbow = False
+        self.pattern_color_index = (
+            self.pattern_color_index + 1
+        ) % len(PATTERN_PALETTE)
+
