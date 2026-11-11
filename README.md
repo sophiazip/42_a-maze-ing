@@ -95,3 +95,42 @@ Each line uses `KEY=VALUE`. Blank lines and lines starting with `#` are ignored.
 
 ---
 
+## Reusable Module (`mazegen`)
+
+The `MazeGenerator` class is standalone and can be imported into future projects:
+
+```python
+from mazegen import MazeGenerator
+
+gen = MazeGenerator(
+    width=20,
+    height=15,
+    entry=(0, 0),
+    exit=(19, 14),
+    perfect=False,
+    seed=42,
+    algorithm="backtracker",
+)
+gen.generate()
+
+# Access internal wall bitmask grid (row-major, bits: N=1, E=2, S=4, W=8)
+grid = gen.grid
+hex_rows = gen.to_hex_rows()
+
+# Access shortest path as NESW string or ordered (x, y) coordinates
+route = gen.shortest_path()
+coords = gen.shortest_path_coords()
+
+# Write subject-compliant output file
+gen.write_output("maze.txt")
+```
+
+To build the installable wheel package from source:
+
+```bash
+python3 -m build
+pip install dist/mazegen-1.0.0-py3-none-any.whl
+```
+
+---
+
