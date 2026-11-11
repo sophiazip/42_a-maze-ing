@@ -61,3 +61,24 @@ class TestConfigParser(unittest.TestCase):
         with self.assertRaises(ConfigError):
             parse_config(path)
 
+    def test_out_of_bounds_entry_raises(self) -> None:
+        """Coordinates outside maze dimensions raise ConfigError."""
+        path = self._write_temp(
+            "WIDTH=10\nHEIGHT=10\nENTRY=10,0\nEXIT=5,5\n"
+            "OUTPUT_FILE=out.txt\nPERFECT=True\n"
+        )
+        with self.assertRaises(ConfigError):
+            parse_config(path)
+
+    def test_same_entry_and_exit_raises(self) -> None:
+        """Identical entry and exit raise ConfigError."""
+        path = self._write_temp(
+            "WIDTH=10\nHEIGHT=10\nENTRY=2,2\nEXIT=2,2\n"
+            "OUTPUT_FILE=out.txt\nPERFECT=True\n"
+        )
+        with self.assertRaises(ConfigError):
+            parse_config(path)
+
+
+if __name__ == "__main__":
+    unittest.main()
