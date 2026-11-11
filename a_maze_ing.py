@@ -50,3 +50,31 @@ def _launch_display(
     run_ascii_loop(config, generator)
 
 
+def main(argv: Optional[List[str]] = None) -> int:
+    """Parse arguments, generate the maze, write output, and launch UI."""
+    parser = _build_parser()
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return int(exc.code) if isinstance(exc.code, int) else 1
+
+    try:
+        config = parse_config(args.config)
+        generator = MazeGenerator(config)
+        generator.generate(record_steps=True)
+        generator.write_output(config.output_file)
+    except (ConfigError, ValueError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    display_mode: str = args.display if args.display else config.display
+    try:
+        _launch_display(config, generator, display_mode)
+    except Exception as exc:
+        print(f"Display error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
