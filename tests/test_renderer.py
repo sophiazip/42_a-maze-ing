@@ -35,3 +35,11 @@ class TestRenderers(unittest.TestCase):
         gen.generate()
         return cfg, gen
 
+    def test_ascii_render_dimensions(self) -> None:
+        """ASCII canvas has 2*height + 1 lines."""
+        _cfg, gen = self._make_session()
+        rendered_no_path = render_ascii(gen, show_path=False)
+        rendered_with_path = render_ascii(gen, show_path=True)
+        self.assertEqual(len(rendered_no_path.splitlines()), 2 * 10 + 1)
+        self.assertNotEqual(rendered_no_path, rendered_with_path)
+
