@@ -31,3 +31,22 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _launch_display(
+    config: MazeConfig,
+    generator: MazeGenerator,
+    mode: str,
+) -> None:
+    """Start the chosen visual renderer."""
+    if mode == "mlx":
+        try:
+            window = MazeWindow(config, generator)
+            window.run()
+            return
+        except RuntimeError as exc:
+            print(
+                f"MLX unavailable ({exc}). Falling back to terminal ASCII.",
+                file=sys.stderr,
+            )
+    run_ascii_loop(config, generator)
+
+
