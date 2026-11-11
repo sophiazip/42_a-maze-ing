@@ -134,3 +134,18 @@ pip install dist/mazegen-1.0.0-py3-none-any.whl
 
 ---
 
+## Team and Project Management
+
+- **Planning & Documentation:** Organized on the `study-guides` branch with modular study guides, task breakdowns, risk matrices, and defense flashcards, tracked through 37 GitHub Issues.
+- **Workflow:** Semantic micro-commits in English on dedicated feature/dev branches, paired with automated `flake8` and `mypy --strict` validation.
+- **Tools:** Python 3.10, `flake8`, `mypy`, `unittest`, `maze_analyzer.py`, MiniLibX (`mlx-2.2`), and GitHub Issues.
+
+---
+
+## Resources and AI Usage
+
+- **References:**
+  - *Mazes for Programmers* (Jamis Buck) — Recursive Backtracker, Kruskal, Prim, and Braiding algorithms.
+  - Python `enum.IntFlag`, `collections.deque`, and PEP 621 `pyproject.toml` documentation.
+- **AI Usage:**
+  - AI assistance was used to structure the `study-guides` planning documents, create GitHub issues, scaffold unit tests, and verify edge-case handling against `maze_analyzer.py` and `mypy --strict`.
