@@ -89,3 +89,15 @@ class TestMazeGenerator(unittest.TestCase):
             col += dc
         self.assertEqual((row, col), gen.exit_cell)
 
+    def test_pattern_42_present_and_omitted_when_small(self) -> None:
+        """Pattern '42' is fully closed on 20x15 and omitted on 5x5."""
+        big = MazeGenerator(width=20, height=15, exit=(19, 14), seed=7)
+        big.generate()
+        self.assertTrue(len(big.blocked_cells) > 0)
+        for r, c in big.blocked_cells:
+            self.assertEqual(big.grid[r][c], ALL_WALLS)
+
+        small = MazeGenerator(width=5, height=5, exit=(4, 4), seed=7)
+        small.generate()
+        self.assertEqual(small.blocked_cells, set())
+
