@@ -390,3 +390,32 @@ class MazeWindow:
         self.mlx.mlx_do_sync(self.mlx_ptr)
         self._dirty = False
 
+    def _emit_animation_sound(self, prev_phase: str, now: float) -> None:
+        """Trigger 8-bit chiptune notes synchronized with animation phase."""
+        phase = self.session.anim_phase
+        if phase == "celebrate" and prev_phase != "celebrate":
+            self.sound.play_victory()
+            self._last_sound_tick = now
+            return
+        if now - self._last_sound_tick < 0.036:
+            return
+        if phase == "carving":
+            steps = self.session.generator.generation_steps
+            total = max(1, len(steps))
+            idx = min(len(steps) - 1, max(0, self.session.carve_idx - 1))
+            step = steps[idx] if steps else None
+            backtrack = step is not None and step.kind == "backtrack"
+            cell = self.session.active_cell or (0, 0)
+            self.sound.play_carve(
+                self.session.carve_idx / total, cell, backtrack=backtrack
+            )
+            self._last_sound_tick = now
+        elif phase == "solving":
+            total = max(1, len(self.session.solve_explored))
+            self.sound.play_solve(self.session.solve_idx / total)
+            self._last_sound_tick = now
+        elif phase == "tracing":
+            total = max(1, len(self.session.solve_path))
+            self.sound.play_trace(self.session.trace_idx / total)
+            self._last_sound_tick = now
+
