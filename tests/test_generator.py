@@ -48,3 +48,12 @@ class TestMazeGenerator(unittest.TestCase):
                             all_open = False
                 self.assertFalse(all_open)
 
+    def test_seed_reproducibility(self) -> None:
+        """Identical seeds produce identical hexadecimal grids and paths."""
+        g1 = MazeGenerator(width=15, height=12, exit=(14, 11), seed=1234)
+        g2 = MazeGenerator(width=15, height=12, exit=(14, 11), seed=1234)
+        g1.generate()
+        g2.generate()
+        self.assertEqual(g1.to_hex_rows(), g2.to_hex_rows())
+        self.assertEqual(g1.shortest_path(), g2.shortest_path())
+
