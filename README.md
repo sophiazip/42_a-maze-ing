@@ -86,3 +86,12 @@ Each line uses `KEY=VALUE`. Blank lines and lines starting with `#` are ignored.
 
 ---
 
+## Algorithms and Design Choices
+
+- **Iterative Recursive Backtracker (default):** Implemented with an explicit heap stack instead of Python recursion to avoid `RecursionError` on large grids. Produces long, winding corridors with natural flow.
+- **Kruskal (with Disjoint Set Union) & Prim:** Included as alternative generators selectable via `ALGORITHM`, using path compression and union by rank in DSU for near-linear edge merging.
+- **Playable Mode (`PERFECT=False`) & Braiding:** Starts from a connected spanning tree around the `"42"` cells, then eliminates real dead-ends and ensures cyclomatic complexity $L = E - V + 1 \ge 2$ while rejecting any wall removal that would create a $3 \times 3$ open area.
+- **BFS Shortest Path:** Breadth-first search (`collections.deque`) guarantees the shortest sequence of `N`, `E`, `S`, `W` moves from `ENTRY` to `EXIT` in $O(V + E)$ time.
+
+---
+
