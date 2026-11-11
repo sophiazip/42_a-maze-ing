@@ -441,3 +441,57 @@ class MazeWindow:
         """Request a redraw when the window is exposed."""
         self._dirty = True
 
+    def _on_key_press(self, keycode: int, _param: Any) -> None:
+        """Handle keyboard shortcuts."""
+        if self._closed:
+            return
+        if keycode in KEYS_REGEN:
+            self.session.regenerate()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_PATH:
+            self.session.toggle_path()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_COLOR:
+            self.session.cycle_wall_color()
+            self.sound.play_ui_click()
+            self._dirty = True
+        elif keycode in KEYS_PATTERN:
+            self.session.cycle_pattern_color()
+            self.sound.play_ui_click()
+            self._dirty = True
+        elif keycode in KEYS_RAINBOW:
+            self.session.toggle_rainbow()
+            self.sound.play_ui_click()
+            self._last_rainbow_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_ALGO:
+            self.session.cycle_algorithm()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_ENDPOINTS:
+            self.session.randomize_endpoints()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_MUTE:
+            self.sound.toggle_mute()
+            self._dirty = True
+        elif keycode in KEYS_SPACE:
+            self.session.replay_or_skip()
+            self.sound.clear()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_QUIT:
+            self._on_close(self)
+
+    def _on_close(self, _param: Any) -> None:
+        """Exit the MLX event loop cleanly."""
+        if not self._closed:
+            self.mlx.mlx_loop_exit(self.mlx_ptr)
+
