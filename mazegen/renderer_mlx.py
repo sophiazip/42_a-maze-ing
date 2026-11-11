@@ -495,3 +495,13 @@ class MazeWindow:
         if not self._closed:
             self.mlx.mlx_loop_exit(self.mlx_ptr)
 
+    def run(self) -> None:
+        """Enter the MLX event loop and release resources on exit."""
+        try:
+            self.mlx.mlx_loop(self.mlx_ptr)
+        finally:
+            self._closed = True
+            self.sound.close()
+            self.mlx.mlx_destroy_image(self.mlx_ptr, self.img)
+            self.mlx.mlx_destroy_window(self.mlx_ptr, self.win)
+            self.mlx.mlx_release(self.mlx_ptr)
