@@ -19,3 +19,5 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 
+[tool.setuptools]
+packages = ["mazegen"]
