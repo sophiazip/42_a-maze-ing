@@ -57,3 +57,35 @@ class TestMazeGenerator(unittest.TestCase):
         self.assertEqual(g1.to_hex_rows(), g2.to_hex_rows())
         self.assertEqual(g1.shortest_path(), g2.shortest_path())
 
+    def test_algorithms_perfect_and_playable(self) -> None:
+        """All algorithms pass coherence, connectivity, and 3x3 checks."""
+        for algo in ("backtracker", "kruskal", "prim"):
+            for perfect in (True, False):
+                gen = MazeGenerator(
+                    width=20,
+                    height=15,
+                    entry=(0, 0),
+                    exit=(19, 14),
+                    perfect=perfect,
+                    seed=99,
+                    algorithm=algo,
+                )
+                gen.generate()
+                self._assert_coherent(gen)
+                self._assert_no_3x3_open(gen)
+                path = gen.shortest_path()
+                self.assertTrue(len(path) > 0)
+                self._trace_path(gen, path)
+
+    def _trace_path(self, gen: MazeGenerator, path: str) -> None:
+        """Verify each step in path crosses an open wall and hits exit."""
+        letter_to_dir = {d.letter: d for d in Direction}
+        row, col = gen.entry_cell
+        for char in path:
+            direction = letter_to_dir[char]
+            self.assertFalse(gen.grid[row][col] & int(direction))
+            dr, dc = DIRECTION_STEPS[direction]
+            row += dr
+            col += dc
+        self.assertEqual((row, col), gen.exit_cell)
+
