@@ -419,3 +419,25 @@ class MazeWindow:
             self.sound.play_trace(self.session.trace_idx / total)
             self._last_sound_tick = now
 
+    def _on_loop(self, _param: Any) -> None:
+        """Redraw pending state, step animations, and animate rainbow mode."""
+        if self._closed:
+            return
+        now = time.monotonic()
+        if self.session.is_animating and now - self._last_anim_tick >= 0.016:
+            self._last_anim_tick = now
+            prev_phase = self.session.anim_phase
+            if self.session.step_animation():
+                self._emit_animation_sound(prev_phase, now)
+                self._dirty = True
+        if self.session.rainbow and now - self._last_rainbow_tick >= 0.05:
+            self._last_rainbow_tick = now
+            self.session.advance_rainbow(0.015)
+            self._dirty = True
+        if self._dirty:
+            self.render()
+
+    def _on_expose(self, _param: Any) -> None:
+        """Request a redraw when the window is exposed."""
+        self._dirty = True
+
