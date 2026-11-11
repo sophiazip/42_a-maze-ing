@@ -68,3 +68,21 @@ python3 -m unittest discover -s tests -v
 
 ---
 
+## Configuration File Format
+
+Each line uses `KEY=VALUE`. Blank lines and lines starting with `#` are ignored.
+
+| Key | Required | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `WIDTH` | Yes | `WIDTH=20` | Maze width in cells |
+| `HEIGHT` | Yes | `HEIGHT=15` | Maze height in cells |
+| `ENTRY` | Yes | `ENTRY=0,0` | Entry coordinates `(x,y)` |
+| `EXIT` | Yes | `EXIT=19,14` | Exit coordinates `(x,y)` |
+| `OUTPUT_FILE` | Yes | `OUTPUT_FILE=maze.txt` | Output file path |
+| `PERFECT` | Yes | `PERFECT=True` | `True` for spanning tree, `False` for braided playable board |
+| `SEED` | No | `SEED=42` | Integer seed for reproducible generation |
+| `ALGORITHM` | No | `ALGORITHM=backtracker` | `backtracker`, `kruskal`, or `prim` |
+| `DISPLAY` | No | `DISPLAY=ascii` | `ascii` or `mlx` |
+
+---
+
