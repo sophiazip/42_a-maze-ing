@@ -43,3 +43,28 @@ python3 a_maze_ing.py config.txt --display ascii
 python3 a_maze_ing.py config.txt --display mlx
 ```
 
+### Interactive Controls
+
+- **Terminal (`ascii`):**
+  - `1` or `r`: Re-generate a new maze
+  - `2` or `p`: Show / Hide the shortest path
+  - `3` or `c`: Rotate wall colours
+  - `t`: Rotate `"42"` pattern colour
+  - `4` or `q`: Quit
+- **GUI (`mlx`):**
+  - `1` / `R`: Re-generate a new maze
+  - `2` / `P`: Show / Hide the shortest path
+  - `3` / `C`: Rotate wall colours
+  - `T`: Rotate `"42"` pattern colour
+  - `4` / `Q` / `Esc` / Window Close: Quit
+
+### Quality and Testing
+
+```bash
+make lint
+make lint-strict
+python3 -m unittest discover -s tests -v
+```
+
+---
+
