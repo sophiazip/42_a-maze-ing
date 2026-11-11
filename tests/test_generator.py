@@ -101,3 +101,31 @@ class TestMazeGenerator(unittest.TestCase):
         small.generate()
         self.assertEqual(small.blocked_cells, set())
 
+    def test_generation_steps_and_solve_trace(self) -> None:
+        """Recording steps and solver trace cover entry-to-exit path."""
+        for algo in ("backtracker", "kruskal", "prim"):
+            gen = MazeGenerator(
+                width=12, height=10, exit=(11, 9), seed=55, algorithm=algo
+            )
+            gen.generate(record_steps=True)
+            self.assertTrue(len(gen.generation_steps) > 0)
+            explored, path_cells = gen.solve_with_trace()
+            self.assertEqual(explored[0], gen.entry_cell)
+            self.assertEqual(path_cells[0], gen.entry_cell)
+            self.assertEqual(path_cells[-1], gen.exit_cell)
+            self.assertEqual(len(path_cells), len(gen.shortest_path()) + 1)
+
+    def test_pick_random_endpoints_avoids_42(self) -> None:
+        """Randomized endpoints stay in bounds, distinct, and off '42'."""
+        gen = MazeGenerator(width=20, height=15, exit=(19, 14), seed=42)
+        for _ in range(15):
+            entry_pt, exit_pt = pick_random_endpoints(
+                gen.width, gen.height, gen.blocked_cells
+            )
+            self.assertNotEqual(entry_pt, exit_pt)
+            self.assertNotIn((entry_pt[1], entry_pt[0]), gen.blocked_cells)
+            self.assertNotIn((exit_pt[1], exit_pt[0]), gen.blocked_cells)
+
+
+if __name__ == "__main__":
+    unittest.main()
