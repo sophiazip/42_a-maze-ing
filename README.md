@@ -10,3 +10,36 @@ The generation engine lives in a standalone installable package (`mazegen`) deco
 
 ---
 
+## Instructions
+
+### Setup and Installation
+
+```bash
+make install
+```
+
+To enable the graphical MLX renderer in a virtual environment on Ubuntu/Fedora:
+
+```bash
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
+pip install --no-index --no-deps ../mlx-2.2/ubuntu/mlx-2.2-py3-none-any.whl
+```
+
+### Execution
+
+Run with the default configuration file (`config.txt`):
+
+```bash
+make run
+# or
+python3 a_maze_ing.py config.txt
+```
+
+Override the visual mode from the command line:
+
+```bash
+python3 a_maze_ing.py config.txt --display ascii
+python3 a_maze_ing.py config.txt --display mlx
+```
+
