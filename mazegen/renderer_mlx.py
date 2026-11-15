@@ -20,11 +20,11 @@ except ImportError:
 
 # (name, wall_color, path_color, path_tint_color)
 WALL_PALETTE: Tuple[Tuple[str, int, int, int], ...] = (
-    ("Cyber Emerald", 0xFF10B981, 0xFF38BDF8, 0xFF0C2D42),
-    ("Synthwave", 0xFFF43F5E, 0xFF22D3EE, 0xFF0E3440),
-    ("Amber Blueprint", 0xFFF59E0B, 0xFF60A5FA, 0xFF13294B),
-    ("Nordic Ice", 0xFFE2E8F0, 0xFF818CF8, 0xFF1E224A),
-    ("Violet Pulse", 0xFFA855F7, 0xFF34D399, 0xFF0D3326),
+    ("Emerald", 0xFF10B981, 0xFF38BDF8, 0xFF0C2D42),
+    ("Synth", 0xFFF43F5E, 0xFF22D3EE, 0xFF0E3440),
+    ("Amber", 0xFFF59E0B, 0xFF60A5FA, 0xFF13294B),
+    ("Nordic", 0xFFE2E8F0, 0xFF818CF8, 0xFF1E224A),
+    ("Violet", 0xFFA855F7, 0xFF34D399, 0xFF0D3326),
 )
 
 # (name, fill_color, accent_color)
@@ -47,23 +47,15 @@ COLOR_ENTRY_INNER = 0xFFBBF7D0
 COLOR_EXIT_OUTER = 0xFFEF4444
 COLOR_EXIT_INNER = 0xFFFECACA
 COLOR_TEXT = 0xFFE2E8F0
+COLOR_TEXT_DIM = 0xFF94A3B8
 COLOR_TEXT_ACCENT = 0xFF38BDF8
 
-KEY_1 = 49
-KEY_2 = 50
-KEY_3 = 51
-KEY_4 = 52
-KEY_NP_1 = 65457
-KEY_NP_2 = 65458
-KEY_NP_3 = 65459
-KEY_NP_4 = 65460
-KEY_A = 97
-KEY_C = 99
-KEY_P = 112
-KEY_Q = 113
-KEY_R = 114
-KEY_T = 116
-KEY_ESC = 65307
+KEYS_REGEN = (49, 65457, 114, 82)   # 1, KP_1, r, R
+KEYS_PATH = (50, 65458, 112, 80)    # 2, KP_2, p, P
+KEYS_COLOR = (51, 65459, 99, 67)    # 3, KP_3, c, C
+KEYS_PATTERN = (116, 84)            # t, T
+KEYS_ALGO = (97, 65)                # a, A
+KEYS_QUIT = (52, 65460, 113, 81, 65307)  # 4, KP_4, q, Q, Esc
 
 
 class MazeSession:
@@ -164,11 +156,12 @@ class MazeWindow:
 
     PAD = 20
     TOP_BAR = 44
-    BOTTOM_BAR = 60
+    BOTTOM_BAR = 44
     MIN_CELL = 10
     MAX_CELL = 38
-    MIN_WIN_WIDTH = 680
+    MIN_WIN_WIDTH = 660
     WALL_THICKNESS = 2
+    FONT_WIDTH = 10
 
     def __init__(self, config: MazeConfig, generator: MazeGenerator) -> None:
         """Initialize MLX, allocate image buffer, and render first frame."""
@@ -180,6 +173,7 @@ class MazeWindow:
 
         self.session = MazeSession(config, generator)
         self._closed = False
+        self._dirty = False
         self.mlx: Any = _mlx.Mlx()
         self.mlx_ptr: Any = self.mlx.mlx_init()
         if not self.mlx_ptr:
@@ -212,9 +206,11 @@ class MazeWindow:
         self.pixels: bytearray = data
         self.size_line: int = size_line
 
-        self.mlx.mlx_key_hook(self.win, self._on_key_press, None)
-        self.mlx.mlx_expose_hook(self.win, self._on_expose, None)
-        self.mlx.mlx_hook(self.win, 17, 0, self._on_close, None)
+        self.mlx.mlx_do_key_autorepeatoff(self.mlx_ptr)
+        self.mlx.mlx_key_hook(self.win, self._on_key_press, self)
+        self.mlx.mlx_expose_hook(self.win, self._on_expose, self)
+        self.mlx.mlx_hook(self.win, 33, 0, self._on_close, self)
+        self.mlx.mlx_loop_hook(self.mlx_ptr, self._on_loop, self)
         self.render()
 
     def _compute_cell_size(self) -> int:
@@ -228,6 +224,15 @@ class MazeWindow:
         fit_w = avail_w // self.session.config.width
         fit_h = avail_h // self.session.config.height
         return max(self.MIN_CELL, min(self.MAX_CELL, fit_w, fit_h))
+
+    def _fit(self, text: str, max_px: int) -> str:
+        """Truncate text so it never overflows max_px."""
+        limit = max(1, max_px // self.FONT_WIDTH)
+        if len(text) <= limit:
+            return text
+        if limit <= 3:
+            return text[:limit]
+        return text[:limit - 3] + "..."
 
     def _fill_rect(
         self,
@@ -331,8 +336,7 @@ class MazeWindow:
         self._fill_rect(0, footer_y, self.win_w, self.BOTTOM_BAR, COLOR_HUD)
         self._fill_rect(0, footer_y, self.win_w, 1, COLOR_HUD_BORDER)
 
-        # Color theme swatch framed cleanly on the right of the bottom bar
-        swatch_size = 20
+        swatch_size = 16
         swatch_x = self.win_w - self.PAD - swatch_size
         swatch_y = footer_y + (self.BOTTOM_BAR - swatch_size) // 2
         self._fill_rect(
@@ -406,74 +410,73 @@ class MazeWindow:
 
         cfg = self.session.config
         mode = "PERFECT" if cfg.perfect else "BRAIDED"
-        seed_txt = str(cfg.seed) if cfg.seed is not None else "rand"
-        steps = len(gen.shortest_path())
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, 27,
+            self.mlx_ptr, self.win, self.PAD, 28,
             COLOR_TEXT_ACCENT, "A-MAZE-ING",
         )
-        meta = (
-            f"{cfg.width}x{cfg.height} | {cfg.algorithm} | {mode} | "
-            f"seed:{seed_txt} | path:{steps}"
+        meta = self._fit(
+            f"{cfg.width}x{cfg.height} | {cfg.algorithm} | {mode}",
+            self.win_w - 2 * self.PAD - 130,
         )
-        meta_x = max(self.PAD + 130, self.win_w - self.PAD - len(meta) * 10)
+        meta_x = self.win_w - self.PAD - len(meta) * self.FONT_WIDTH
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, meta_x, 27, COLOR_TEXT, meta
+            self.mlx_ptr, self.win, meta_x, 28, COLOR_TEXT_DIM, meta
         )
 
-        footer_base = self.win_h - self.BOTTOM_BAR
-        line1 = (
-            f"[1/R] Regen    [2/P] Path    "
-            f"[3/C] Theme: {self.session.theme_name}"
-        )
-        line2 = "[T] 42 Color   [A] Algo      [4/Q] Quit"
-        self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, footer_base + 23,
-            COLOR_TEXT, line1,
+        footer_y = self.win_h - self.BOTTOM_BAR + 28
+        controls = self._fit(
+            "1:Regen  2:Path  3:Theme  T:42  A:Algo  4:Quit",
+            self.win_w - 2 * self.PAD - 36,
         )
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, footer_base + 46,
-            COLOR_TEXT, line2,
+            self.mlx_ptr, self.win, self.PAD, footer_y, COLOR_TEXT, controls
         )
 
-    def _on_expose(self, _param: Any) -> int:
-        """Handle window expose events."""
-        self.render()
-        return 0
+        self.mlx.mlx_do_sync(self.mlx_ptr)
+        self._dirty = False
 
-    def _on_key_press(self, keycode: int, _param: Any) -> int:
+    def _on_loop(self, _param: Any) -> None:
+        """Redraw pending state inside the MLX loop."""
+        if self._dirty and not self._closed:
+            self.render()
+
+    def _on_expose(self, _param: Any) -> None:
+        """Request a redraw when the window is exposed."""
+        self._dirty = True
+
+    def _on_key_press(self, keycode: int, _param: Any) -> None:
         """Handle keyboard shortcuts."""
-        if keycode in (KEY_1, KEY_NP_1, KEY_R):
+        if self._closed:
+            return
+        if keycode in KEYS_REGEN:
             self.session.regenerate()
-            self.render()
-        elif keycode in (KEY_2, KEY_NP_2, KEY_P):
+            self._dirty = True
+        elif keycode in KEYS_PATH:
             self.session.toggle_path()
-            self.render()
-        elif keycode in (KEY_3, KEY_NP_3, KEY_C):
+            self._dirty = True
+        elif keycode in KEYS_COLOR:
             self.session.cycle_wall_color()
-            self.render()
-        elif keycode == KEY_T:
+            self._dirty = True
+        elif keycode in KEYS_PATTERN:
             self.session.cycle_pattern_color()
-            self.render()
-        elif keycode == KEY_A:
+            self._dirty = True
+        elif keycode in KEYS_ALGO:
             self.session.cycle_algorithm()
-            self.render()
-        elif keycode in (KEY_4, KEY_NP_4, KEY_Q, KEY_ESC):
-            self._on_close(None)
-        return 0
+            self._dirty = True
+        elif keycode in KEYS_QUIT:
+            self._on_close(self)
 
-    def _on_close(self, _param: Any) -> int:
-        """Close the MLX window and exit the event loop cleanly."""
+    def _on_close(self, _param: Any) -> None:
+        """Exit the MLX event loop cleanly."""
         if not self._closed:
-            self._closed = True
             self.mlx.mlx_loop_exit(self.mlx_ptr)
-        return 0
 
     def run(self) -> None:
         """Enter the MLX event loop and release resources on exit."""
         try:
             self.mlx.mlx_loop(self.mlx_ptr)
         finally:
+            self._closed = True
             self.mlx.mlx_destroy_image(self.mlx_ptr, self.img)
             self.mlx.mlx_destroy_window(self.mlx_ptr, self.win)
             self.mlx.mlx_release(self.mlx_ptr)
