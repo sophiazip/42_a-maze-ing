@@ -15,7 +15,8 @@ MANDATORY_KEYS = frozenset({
 })
 
 OPTIONAL_KEYS = frozenset({"SEED", "ALGORITHM", "DISPLAY"})
-VALID_ALGORITHMS = frozenset({"backtracker", "kruskal", "prim"})
+ALGORITHMS: Tuple[str, ...] = ("backtracker", "kruskal", "prim")
+VALID_ALGORITHMS = frozenset(ALGORITHMS)
 VALID_DISPLAYS = frozenset({"ascii", "mlx"})
 
 

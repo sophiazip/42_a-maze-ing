@@ -7,7 +7,7 @@ import random
 import time
 from typing import Dict, List, Optional, Set, Tuple
 
-from mazegen.config import MazeConfig
+from mazegen.config import ALGORITHMS, MazeConfig
 from mazegen.generator import (
     ALL_WALLS,
     Direction,
@@ -36,8 +36,6 @@ PATTERN_COLORS: Tuple[Tuple[str, str], ...] = (
     ("Gold", "\033[33m"),
     ("Violet", "\033[35m"),
 )
-
-ALGORITHMS: Tuple[str, ...] = ("backtracker", "kruskal", "prim")
 
 COLOR_ENTRY = "\033[92;1m"
 COLOR_EXIT = "\033[91;1m"

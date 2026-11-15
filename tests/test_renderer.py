@@ -9,7 +9,7 @@ import unittest
 from mazegen.config import MazeConfig
 from mazegen.generator import MazeGenerator
 from mazegen.renderer_ascii import render_ascii
-from mazegen.renderer_mlx import MazeSession, WALL_PALETTE
+from mazegen.session import MazeSession, WALL_PALETTE
 
 
 class TestRenderers(unittest.TestCase):
