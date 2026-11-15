@@ -61,7 +61,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         config = parse_config(args.config)
         generator = MazeGenerator(config)
-        generator.generate()
+        generator.generate(record_steps=True)
         generator.write_output(config.output_file)
     except (ConfigError, ValueError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

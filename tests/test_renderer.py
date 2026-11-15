@@ -69,6 +69,27 @@ class TestRenderers(unittest.TestCase):
         self.assertNotEqual(session.wall_color, w1)
         self.assertNotEqual(session.pattern_color, p1)
 
+    def test_mlx_session_animation_lifecycle(self) -> None:
+        """MazeSession advances carving -> solving -> tracing -> idle."""
+        cfg, _gen = self._make_session()
+        anim_gen = MazeGenerator(cfg)
+        anim_gen.generate(record_steps=True)
+        session = MazeSession(cfg, anim_gen, show_path=True)
+        self.assertEqual(session.anim_phase, "carving")
+        seen_phases = {session.anim_phase}
+        for _ in range(1000):
+            if not session.is_animating:
+                break
+            session.step_animation()
+            seen_phases.add(session.anim_phase)
+        self.assertEqual(session.anim_phase, "idle")
+        self.assertIn("solving", seen_phases)
+        self.assertIn("tracing", seen_phases)
+        session.replay_or_skip()
+        self.assertEqual(session.anim_phase, "carving")
+        session.replay_or_skip()
+        self.assertEqual(session.anim_phase, "idle")
+
 
 if __name__ == "__main__":
     unittest.main()

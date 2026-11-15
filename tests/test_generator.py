@@ -100,6 +100,20 @@ class TestMazeGenerator(unittest.TestCase):
         small.generate()
         self.assertEqual(small.blocked_cells, set())
 
+    def test_generation_steps_and_solve_trace(self) -> None:
+        """Recording steps and solver trace cover entry-to-exit path."""
+        for algo in ("backtracker", "kruskal", "prim"):
+            gen = MazeGenerator(
+                width=12, height=10, exit=(11, 9), seed=55, algorithm=algo
+            )
+            gen.generate(record_steps=True)
+            self.assertTrue(len(gen.generation_steps) > 0)
+            explored, path_cells = gen.solve_with_trace()
+            self.assertEqual(explored[0], gen.entry_cell)
+            self.assertEqual(path_cells[0], gen.entry_cell)
+            self.assertEqual(path_cells[-1], gen.exit_cell)
+            self.assertEqual(len(path_cells), len(gen.shortest_path()) + 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 import random
+import time
 from typing import Dict, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
-from mazegen.generator import Direction, MazeGenerator
+from mazegen.generator import ALL_WALLS, Direction, MazeGenerator
 
 ANSI_RESET = "\033[0m"
 ANSI_BOLD = "\033[1m"
@@ -280,7 +281,8 @@ def run_ascii_loop(
             f"\n{COLOR_ENTRY}\u25c6 Entry{ANSI_RESET}  "
             f"{COLOR_EXIT}\u2605 Exit{ANSI_RESET}  "
             f"{ANSI_DIM}[1/r] Regen  [2/p] Path  [3/c] Theme  "
-            f"[t] 42  [b] Rainbow  [a] Algo  [4/q] Quit{ANSI_RESET}"
+            f"[t] 42  [b] Rainbow  [a] Algo  [v] Animate  "
+            f"[4/q] Quit{ANSI_RESET}"
         )
         try:
             choice = input("Choice: ").strip().lower()
@@ -292,7 +294,7 @@ def run_ascii_loop(
             new_seed: Optional[int] = random.randrange(1_000_000)
             current_config = replace(current_config, seed=new_seed)
             current_gen = MazeGenerator(current_config)
-            current_gen.generate()
+            current_gen.generate(record_steps=True)
             current_gen.write_output(current_config.output_file)
         elif choice in {"2", "p"}:
             show_path = not show_path
@@ -309,7 +311,51 @@ def run_ascii_loop(
             next_algo = ALGORITHMS[(cur_idx + 1) % len(ALGORITHMS)]
             current_config = replace(current_config, algorithm=next_algo)
             current_gen = MazeGenerator(current_config)
-            current_gen.generate()
+            current_gen.generate(record_steps=True)
             current_gen.write_output(current_config.output_file)
+        elif choice == "v":
+            _animate_ascii(
+                current_config,
+                current_gen,
+                wall_idx,
+                pattern_idx,
+                clear_screen=clear_screen,
+            )
         elif choice in {"4", "q"}:
             break
+
+
+def _animate_ascii(
+    config: MazeConfig,
+    gen: MazeGenerator,
+    wall_idx: int,
+    pattern_idx: int,
+    clear_screen: bool = True,
+) -> None:
+    """Play a brief terminal animation of maze carving."""
+    if not gen.generation_steps:
+        gen.generate(record_steps=True)
+    preview = MazeGenerator(config)
+    preview.grid = [
+        [ALL_WALLS for _ in range(gen.width)] for _ in range(gen.height)
+    ]
+    steps = gen.generation_steps
+    stride = max(1, len(steps) // 45)
+    for idx, step in enumerate(steps):
+        if step.cell_b is not None and step.direction is not None:
+            r1, c1 = step.cell_a
+            r2, c2 = step.cell_b
+            preview.grid[r1][c1] &= ~int(step.direction)
+            preview.grid[r2][c2] &= ~int(step.direction.opposite)
+        if idx % stride == 0 or idx == len(steps) - 1:
+            if clear_screen:
+                print(ANSI_CLEAR, end="")
+            print(
+                render_ascii(
+                    preview,
+                    show_path=False,
+                    wall_color_idx=wall_idx,
+                    pattern_color_idx=pattern_idx,
+                )
+            )
+            time.sleep(0.025)
