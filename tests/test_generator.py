@@ -9,6 +9,7 @@ from mazegen.generator import (
     DIRECTION_STEPS,
     Direction,
     MazeGenerator,
+    pick_random_endpoints,
 )
 
 
@@ -113,6 +114,17 @@ class TestMazeGenerator(unittest.TestCase):
             self.assertEqual(path_cells[0], gen.entry_cell)
             self.assertEqual(path_cells[-1], gen.exit_cell)
             self.assertEqual(len(path_cells), len(gen.shortest_path()) + 1)
+
+    def test_pick_random_endpoints_avoids_42(self) -> None:
+        """Randomized endpoints stay in bounds, distinct, and off '42'."""
+        gen = MazeGenerator(width=20, height=15, exit=(19, 14), seed=42)
+        for _ in range(15):
+            entry_pt, exit_pt = pick_random_endpoints(
+                gen.width, gen.height, gen.blocked_cells
+            )
+            self.assertNotEqual(entry_pt, exit_pt)
+            self.assertNotIn((entry_pt[1], entry_pt[0]), gen.blocked_cells)
+            self.assertNotIn((exit_pt[1], exit_pt[0]), gen.blocked_cells)
 
 
 if __name__ == "__main__":

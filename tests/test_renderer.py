@@ -90,6 +90,11 @@ class TestRenderers(unittest.TestCase):
         session.replay_or_skip()
         self.assertEqual(session.anim_phase, "idle")
 
+        session.randomize_endpoints(seed=123)
+        self.assertNotEqual(session.config.entry, session.config.exit)
+        self.assertEqual(session.anim_phase, "carving")
+        self.assertTrue(len(session.generator.blocked_cells) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()

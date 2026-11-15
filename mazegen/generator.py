@@ -611,3 +611,32 @@ class MazeGenerator:
         lines.append(route)
         with open(filepath, "w", encoding="utf-8") as stream:
             stream.write("\n".join(lines) + "\n")
+
+
+def pick_random_endpoints(
+    width: int,
+    height: int,
+    blocked_cells: Set[Cell],
+    rng: Optional[random.Random] = None,
+) -> Tuple[Coord, Coord]:
+    """Choose two distinct playable (x, y) coordinates avoiding blocked."""
+    rand = rng if rng is not None else random.Random()
+    playable: List[Coord] = [
+        (c, r)
+        for r in range(height)
+        for c in range(width)
+        if (r, c) not in blocked_cells
+    ]
+    if len(playable) < 2:
+        playable = [(c, r) for r in range(height) for c in range(width)]
+
+    entry = rand.choice(playable)
+    min_dist = max(2, (width + height) // 3)
+    far = [
+        pt for pt in playable
+        if pt != entry and (abs(pt[0] - entry[0]) + abs(pt[1] - entry[1]))
+        >= min_dist
+    ]
+    candidates = far if far else [pt for pt in playable if pt != entry]
+    exit_pt = rand.choice(candidates)
+    return entry, exit_pt

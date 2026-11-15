@@ -10,7 +10,13 @@ import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
-from mazegen.generator import ALL_WALLS, Cell, Direction, MazeGenerator
+from mazegen.generator import (
+    ALL_WALLS,
+    Cell,
+    Direction,
+    MazeGenerator,
+    pick_random_endpoints,
+)
 from mazegen.sound import ChiptunePlayer
 
 _mlx: Any = None
@@ -62,6 +68,7 @@ KEYS_COLOR = (51, 65459, 99, 67)    # 3, KP_3, c, C
 KEYS_PATTERN = (116, 84)            # t, T
 KEYS_RAINBOW = (98, 66)             # b, B
 KEYS_ALGO = (97, 65)                # a, A
+KEYS_ENDPOINTS = (101, 69)          # e, E
 KEYS_MUTE = (109, 77)               # m, M
 KEYS_SPACE = (32,)                  # Space
 KEYS_QUIT = (52, 65460, 113, 81, 65307)  # 4, KP_4, q, Q, Esc
@@ -217,6 +224,24 @@ class MazeSession:
         if seed is None:
             seed = random.randrange(1_000_000)
         self.config = replace(self.config, seed=seed)
+        self.generator = MazeGenerator(self.config)
+        self.generator.generate(record_steps=True)
+        self.generator.write_output(self.config.output_file)
+        self.start_carve_animation()
+
+    def randomize_endpoints(self, seed: Optional[int] = None) -> None:
+        """Pick random entry and exit coordinates and regenerate."""
+        rng = random.Random(seed)
+        entry_pt, exit_pt = pick_random_endpoints(
+            self.config.width,
+            self.config.height,
+            self.generator.blocked_cells,
+            rng=rng,
+        )
+        new_seed = seed if seed is not None else random.randrange(1_000_000)
+        self.config = replace(
+            self.config, entry=entry_pt, exit=exit_pt, seed=new_seed
+        )
         self.generator = MazeGenerator(self.config)
         self.generator.generate(record_steps=True)
         self.generator.write_output(self.config.output_file)
@@ -716,9 +741,10 @@ class MazeWindow:
 
         footer_y = self.win_h - self.BOTTOM_BAR + 13
         space_lbl = "Spc:Skp" if self.session.is_animating else "Spc:Ply"
-        mute_lbl = "M:Mute" if self.sound.muted else "M:Snd"
+        mute_lbl = "M:Mut" if self.sound.muted else "M:Snd"
         controls = self._fit(
-            f"1:Reg 2:Path 3:Col T:42 B:Rbw A:Alg {mute_lbl} {space_lbl} 4:Q",
+            f"1:Reg 2:Pth 3:Col T:42 B:Rbw A:Alg E:Pts "
+            f"{mute_lbl} {space_lbl} 4:Q",
             self.win_w - 2 * self.PAD - 36,
         )
         self.mlx.mlx_string_put(
@@ -808,6 +834,11 @@ class MazeWindow:
             self._dirty = True
         elif keycode in KEYS_ALGO:
             self.session.cycle_algorithm()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_ENDPOINTS:
+            self.session.randomize_endpoints()
             self.sound.play_ui_click()
             self._last_anim_tick = time.monotonic()
             self._dirty = True

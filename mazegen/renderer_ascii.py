@@ -8,7 +8,12 @@ import time
 from typing import Dict, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
-from mazegen.generator import ALL_WALLS, Direction, MazeGenerator
+from mazegen.generator import (
+    ALL_WALLS,
+    Direction,
+    MazeGenerator,
+    pick_random_endpoints,
+)
 
 ANSI_RESET = "\033[0m"
 ANSI_BOLD = "\033[1m"
@@ -281,7 +286,7 @@ def run_ascii_loop(
             f"\n{COLOR_ENTRY}\u25c6 Entry{ANSI_RESET}  "
             f"{COLOR_EXIT}\u2605 Exit{ANSI_RESET}  "
             f"{ANSI_DIM}[1/r] Regen  [2/p] Path  [3/c] Theme  "
-            f"[t] 42  [b] Rainbow  [a] Algo  [v] Animate  "
+            f"[t] 42  [b] Rainbow  [a] Algo  [e] Pts  [v] Animate  "
             f"[4/q] Quit{ANSI_RESET}"
         )
         try:
@@ -310,6 +315,21 @@ def run_ascii_loop(
             cur_idx = ALGORITHMS.index(current_config.algorithm)
             next_algo = ALGORITHMS[(cur_idx + 1) % len(ALGORITHMS)]
             current_config = replace(current_config, algorithm=next_algo)
+            current_gen = MazeGenerator(current_config)
+            current_gen.generate(record_steps=True)
+            current_gen.write_output(current_config.output_file)
+        elif choice == "e":
+            entry_pt, exit_pt = pick_random_endpoints(
+                current_config.width,
+                current_config.height,
+                current_gen.blocked_cells,
+            )
+            current_config = replace(
+                current_config,
+                entry=entry_pt,
+                exit=exit_pt,
+                seed=random.randrange(1_000_000),
+            )
             current_gen = MazeGenerator(current_config)
             current_gen.generate(record_steps=True)
             current_gen.write_output(current_config.output_file)
