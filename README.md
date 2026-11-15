@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by eroque-d.*
+*This project has been created as part of the 42 curriculum by eroque-d, jumoreir.*
 
 # A-Maze-ing
 
