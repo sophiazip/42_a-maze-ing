@@ -237,12 +237,17 @@ def run_ascii_loop(
     show_path = False
     wall_idx = 0
     pattern_idx = 0
+    rainbow = False
     current_config = config
     current_gen = generator
 
     while True:
         if clear_screen:
             print(ANSI_CLEAR, end="")
+
+        if rainbow:
+            wall_idx = (wall_idx + 1) % len(WALL_THEMES)
+            pattern_idx = (pattern_idx + 1) % len(PATTERN_COLORS)
 
         theme_name, wall_ansi, _ = WALL_THEMES[wall_idx % len(WALL_THEMES)]
         mode_label = "PERFECT" if current_config.perfect else "BRAIDED"
@@ -252,6 +257,7 @@ def run_ascii_loop(
             if current_config.seed is not None
             else "rand"
         )
+        rainbow_tag = " [RAINBOW]" if rainbow else ""
         print(
             f"{ANSI_BOLD}{wall_ansi}A-MAZE-ING{ANSI_RESET}  "
             f"{ANSI_DIM}|{ANSI_RESET} {current_config.width}x"
@@ -260,7 +266,7 @@ def run_ascii_loop(
             f"{ANSI_DIM}|{ANSI_RESET} {current_config.algorithm} "
             f"{ANSI_DIM}|{ANSI_RESET} seed:{seed_label} "
             f"{ANSI_DIM}|{ANSI_RESET} path:{steps} "
-            f"{ANSI_DIM}|{ANSI_RESET} {theme_name}"
+            f"{ANSI_DIM}|{ANSI_RESET} {theme_name}{rainbow_tag}"
         )
         print(
             render_ascii(
@@ -274,7 +280,7 @@ def run_ascii_loop(
             f"\n{COLOR_ENTRY}\u25c6 Entry{ANSI_RESET}  "
             f"{COLOR_EXIT}\u2605 Exit{ANSI_RESET}  "
             f"{ANSI_DIM}[1/r] Regen  [2/p] Path  [3/c] Theme  "
-            f"[t] 42 Color  [a] Algo  [4/q] Quit{ANSI_RESET}"
+            f"[t] 42  [b] Rainbow  [a] Algo  [4/q] Quit{ANSI_RESET}"
         )
         try:
             choice = input("Choice: ").strip().lower()
@@ -291,9 +297,13 @@ def run_ascii_loop(
         elif choice in {"2", "p"}:
             show_path = not show_path
         elif choice in {"3", "c"}:
+            rainbow = False
             wall_idx = (wall_idx + 1) % len(WALL_THEMES)
         elif choice == "t":
+            rainbow = False
             pattern_idx = (pattern_idx + 1) % len(PATTERN_COLORS)
+        elif choice == "b":
+            rainbow = not rainbow
         elif choice == "a":
             cur_idx = ALGORITHMS.index(current_config.algorithm)
             next_algo = ALGORITHMS[(cur_idx + 1) % len(ALGORITHMS)]

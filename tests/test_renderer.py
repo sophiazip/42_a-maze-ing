@@ -62,6 +62,13 @@ class TestRenderers(unittest.TestCase):
         self.assertNotEqual(session.generator.to_hex_rows(), old_rows)
         self.assertTrue(Path(cfg.output_file).exists())
 
+        session.toggle_rainbow()
+        self.assertTrue(session.rainbow)
+        w1, p1 = session.wall_color, session.pattern_color
+        session.advance_rainbow(0.25)
+        self.assertNotEqual(session.wall_color, w1)
+        self.assertNotEqual(session.pattern_color, p1)
+
 
 if __name__ == "__main__":
     unittest.main()

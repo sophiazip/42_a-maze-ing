@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import colorsys
 from dataclasses import replace
 import importlib
 import random
+import time
 from typing import Any, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
@@ -54,8 +56,20 @@ KEYS_REGEN = (49, 65457, 114, 82)   # 1, KP_1, r, R
 KEYS_PATH = (50, 65458, 112, 80)    # 2, KP_2, p, P
 KEYS_COLOR = (51, 65459, 99, 67)    # 3, KP_3, c, C
 KEYS_PATTERN = (116, 84)            # t, T
+KEYS_RAINBOW = (98, 66)             # b, B
 KEYS_ALGO = (97, 65)                # a, A
 KEYS_QUIT = (52, 65460, 113, 81, 65307)  # 4, KP_4, q, Q, Esc
+
+
+def _hsv_to_argb(hue: float, sat: float, val: float) -> int:
+    """Convert normalized HSV values to a 0xAARRGGBB integer."""
+    r, g, b = colorsys.hsv_to_rgb(hue % 1.0, sat, val)
+    return (
+        0xFF000000
+        | (int(r * 255) << 16)
+        | (int(g * 255) << 8)
+        | int(b * 255)
+    )
 
 
 class MazeSession:
@@ -73,49 +87,73 @@ class MazeSession:
         self.show_path = show_path
         self.wall_color_index = 0
         self.pattern_color_index = 0
+        self.rainbow = False
+        self.rainbow_phase = 0.0
 
     @property
     def theme_name(self) -> str:
         """Return the active theme name."""
+        if self.rainbow:
+            return "Rainbow"
         return WALL_PALETTE[self.wall_color_index][0]
 
     @property
     def wall_color(self) -> int:
         """Return the current 0xAARRGGBB wall color."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase, 0.85, 0.96)
         return WALL_PALETTE[self.wall_color_index][1]
 
     @property
     def path_color(self) -> int:
         """Return the current 0xAARRGGBB path ribbon color."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.55, 0.80, 0.96)
         return WALL_PALETTE[self.wall_color_index][2]
 
     @property
     def path_tint(self) -> int:
         """Return the current 0xAARRGGBB path cell tint color."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.55, 0.75, 0.24)
         return WALL_PALETTE[self.wall_color_index][3]
 
     @property
     def pattern_color(self) -> int:
         """Return the current 0xAARRGGBB fill color for '42' cells."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.33, 0.78, 0.42)
         return PATTERN_PALETTE[self.pattern_color_index][1]
 
     @property
     def pattern_accent(self) -> int:
         """Return the current 0xAARRGGBB inner bevel color for '42' cells."""
+        if self.rainbow:
+            return _hsv_to_argb(self.rainbow_phase + 0.33, 0.80, 0.72)
         return PATTERN_PALETTE[self.pattern_color_index][2]
 
     def toggle_path(self) -> None:
         """Toggle shortest path visibility."""
         self.show_path = not self.show_path
 
+    def toggle_rainbow(self) -> None:
+        """Toggle animated rainbow color cycling."""
+        self.rainbow = not self.rainbow
+
+    def advance_rainbow(self, delta: float = 0.02) -> None:
+        """Advance the rainbow hue phase."""
+        self.rainbow_phase = (self.rainbow_phase + delta) % 1.0
+
     def cycle_wall_color(self) -> None:
         """Advance to the next color theme."""
+        self.rainbow = False
         self.wall_color_index = (
             self.wall_color_index + 1
         ) % len(WALL_PALETTE)
 
     def cycle_pattern_color(self) -> None:
         """Advance to the next '42' pattern color."""
+        self.rainbow = False
         self.pattern_color_index = (
             self.pattern_color_index + 1
         ) % len(PATTERN_PALETTE)
@@ -174,6 +212,7 @@ class MazeWindow:
         self.session = MazeSession(config, generator)
         self._closed = False
         self._dirty = False
+        self._last_rainbow_tick = time.monotonic()
         self.mlx: Any = _mlx.Mlx()
         self.mlx_ptr: Any = self.mlx.mlx_init()
         if not self.mlx_ptr:
@@ -425,8 +464,8 @@ class MazeWindow:
 
         footer_y = self.win_h - self.BOTTOM_BAR + 13
         controls = self._fit(
-            "1:Regen   2:Path   3:Theme   T:42   A:Algo   4:Quit",
-            self.win_w - 2 * self.PAD - 40,
+            "1:Regen  2:Path  3:Theme  T:42  B:Rainbow  A:Algo  4:Quit",
+            self.win_w - 2 * self.PAD - 36,
         )
         self.mlx.mlx_string_put(
             self.mlx_ptr, self.win, self.PAD, footer_y, COLOR_TEXT, controls
@@ -436,8 +475,16 @@ class MazeWindow:
         self._dirty = False
 
     def _on_loop(self, _param: Any) -> None:
-        """Redraw pending state inside the MLX loop."""
-        if self._dirty and not self._closed:
+        """Redraw pending state and animate rainbow mode inside MLX loop."""
+        if self._closed:
+            return
+        if self.session.rainbow:
+            now = time.monotonic()
+            if now - self._last_rainbow_tick >= 0.05:
+                self._last_rainbow_tick = now
+                self.session.advance_rainbow(0.015)
+                self._dirty = True
+        if self._dirty:
             self.render()
 
     def _on_expose(self, _param: Any) -> None:
@@ -459,6 +506,10 @@ class MazeWindow:
             self._dirty = True
         elif keycode in KEYS_PATTERN:
             self.session.cycle_pattern_color()
+            self._dirty = True
+        elif keycode in KEYS_RAINBOW:
+            self.session.toggle_rainbow()
+            self._last_rainbow_tick = time.monotonic()
             self._dirty = True
         elif keycode in KEYS_ALGO:
             self.session.cycle_algorithm()
