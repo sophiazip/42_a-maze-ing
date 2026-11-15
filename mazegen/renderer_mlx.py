@@ -162,12 +162,12 @@ class MazeSession:
 class MazeWindow:
     """Interactive X11 window powered by MiniLibX."""
 
-    PAD = 18
+    PAD = 20
     TOP_BAR = 44
-    BOTTOM_BAR = 44
+    BOTTOM_BAR = 60
     MIN_CELL = 10
     MAX_CELL = 38
-    MIN_WIN_WIDTH = 620
+    MIN_WIN_WIDTH = 680
     WALL_THICKNESS = 2
 
     def __init__(self, config: MazeConfig, generator: MazeGenerator) -> None:
@@ -331,11 +331,20 @@ class MazeWindow:
         self._fill_rect(0, footer_y, self.win_w, self.BOTTOM_BAR, COLOR_HUD)
         self._fill_rect(0, footer_y, self.win_w, 1, COLOR_HUD_BORDER)
 
-        # Color theme swatch in the bottom-right corner
-        swatch_x = self.win_w - self.PAD - 16
-        swatch_y = footer_y + 14
+        # Color theme swatch framed cleanly on the right of the bottom bar
+        swatch_size = 20
+        swatch_x = self.win_w - self.PAD - swatch_size
+        swatch_y = footer_y + (self.BOTTOM_BAR - swatch_size) // 2
         self._fill_rect(
-            swatch_x, swatch_y, 16, 16, self.session.wall_color
+            swatch_x - 1,
+            swatch_y - 1,
+            swatch_size + 2,
+            swatch_size + 2,
+            COLOR_HUD_BORDER,
+        )
+        self._fill_rect(
+            swatch_x, swatch_y, swatch_size, swatch_size,
+            self.session.wall_color,
         )
 
     def render(self) -> None:
@@ -399,22 +408,32 @@ class MazeWindow:
         mode = "PERFECT" if cfg.perfect else "BRAIDED"
         seed_txt = str(cfg.seed) if cfg.seed is not None else "rand"
         steps = len(gen.shortest_path())
-        header = (
-            f"A-MAZE-ING   |   {cfg.width}x{cfg.height}   |   "
-            f"{cfg.algorithm}   |   {mode}   |   seed {seed_txt}   |   "
-            f"path {steps}"
-        )
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, 26, COLOR_TEXT_ACCENT, header
+            self.mlx_ptr, self.win, self.PAD, 27,
+            COLOR_TEXT_ACCENT, "A-MAZE-ING",
+        )
+        meta = (
+            f"{cfg.width}x{cfg.height} | {cfg.algorithm} | {mode} | "
+            f"seed:{seed_txt} | path:{steps}"
+        )
+        meta_x = max(self.PAD + 130, self.win_w - self.PAD - len(meta) * 10)
+        self.mlx.mlx_string_put(
+            self.mlx_ptr, self.win, meta_x, 27, COLOR_TEXT, meta
         )
 
-        legend = (
-            f"[1/R] Regen   [2/P] Path   [3/C] {self.session.theme_name}"
-            "   [T] 42   [A] Algo   [4/Q] Quit"
+        footer_base = self.win_h - self.BOTTOM_BAR
+        line1 = (
+            f"[1/R] Regen    [2/P] Path    "
+            f"[3/C] Theme: {self.session.theme_name}"
         )
-        footer_text_y = self.win_h - self.BOTTOM_BAR + 26
+        line2 = "[T] 42 Color   [A] Algo      [4/Q] Quit"
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, footer_text_y, COLOR_TEXT, legend
+            self.mlx_ptr, self.win, self.PAD, footer_base + 23,
+            COLOR_TEXT, line1,
+        )
+        self.mlx.mlx_string_put(
+            self.mlx_ptr, self.win, self.PAD, footer_base + 46,
+            COLOR_TEXT, line2,
         )
 
     def _on_expose(self, _param: Any) -> int:
