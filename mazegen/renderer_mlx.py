@@ -161,7 +161,7 @@ class MazeWindow:
     MAX_CELL = 38
     MIN_WIN_WIDTH = 660
     WALL_THICKNESS = 2
-    FONT_WIDTH = 10
+    FONT_WIDTH = 11
 
     def __init__(self, config: MazeConfig, generator: MazeGenerator) -> None:
         """Initialize MLX, allocate image buffer, and render first frame."""
@@ -411,7 +411,7 @@ class MazeWindow:
         cfg = self.session.config
         mode = "PERFECT" if cfg.perfect else "BRAIDED"
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, 28,
+            self.mlx_ptr, self.win, self.PAD, 26,
             COLOR_TEXT_ACCENT, "A-MAZE-ING",
         )
         meta = self._fit(
@@ -420,13 +420,13 @@ class MazeWindow:
         )
         meta_x = self.win_w - self.PAD - len(meta) * self.FONT_WIDTH
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, meta_x, 28, COLOR_TEXT_DIM, meta
+            self.mlx_ptr, self.win, meta_x, 26, COLOR_TEXT_DIM, meta
         )
 
-        footer_y = self.win_h - self.BOTTOM_BAR + 28
+        footer_y = self.win_h - self.BOTTOM_BAR + 25
         controls = self._fit(
-            "1:Regen  2:Path  3:Theme  T:42  A:Algo  4:Quit",
-            self.win_w - 2 * self.PAD - 36,
+            "1:Regen   2:Path   3:Theme   T:42   A:Algo   4:Quit",
+            self.win_w - 2 * self.PAD - 40,
         )
         self.mlx.mlx_string_put(
             self.mlx_ptr, self.win, self.PAD, footer_y, COLOR_TEXT, controls
