@@ -1,16 +1,20 @@
-"""8-bit chiptune synthesizer and non-blocking audio player for A-Maze-ing."""
+"""8-bit chiptune synthesizer and low-latency streaming audio engine."""
 
 from __future__ import annotations
 
 import math
-import queue
 import shutil
 import struct
 import subprocess
 import threading
+import time
 from typing import List, Optional, Sequence, Tuple
 
 SAMPLE_RATE = 22050
+FRAME_MS = 20
+FRAME_SAMPLES = SAMPLE_RATE * FRAME_MS // 1000
+FRAME_BYTES = FRAME_SAMPLES * 2
+SILENCE_FRAME = b"\x00" * FRAME_BYTES
 
 # C major pentatonic across 2.5 octaves: always consonant regardless of order.
 PENTATONIC_HZ: Tuple[float, ...] = (
@@ -88,7 +92,7 @@ def synthesize_victory_fanfare() -> bytes:
 
 
 def _find_player_cmd() -> Optional[List[str]]:
-    """Return a streaming raw PCM CLI player command if available."""
+    """Return a low-latency streaming raw PCM CLI player command."""
     paplay = shutil.which("paplay")
     if paplay is not None:
         return [
@@ -97,6 +101,8 @@ def _find_player_cmd() -> Optional[List[str]]:
             f"--rate={SAMPLE_RATE}",
             "--channels=1",
             "--format=s16le",
+            "--latency-msec=40",
+            "--process-time-msec=15",
         ]
     pw_play = shutil.which("pw-play")
     if pw_play is not None:
@@ -115,15 +121,17 @@ def _find_player_cmd() -> Optional[List[str]]:
 
 
 class ChiptunePlayer:
-    """Non-blocking background 8-bit sound engine for animation events."""
+    """Continuous low-latency 8-bit audio mixer for animation events."""
 
     def __init__(self, enabled: bool = True) -> None:
-        """Initialize the audio queue and background playback thread."""
+        """Initialize the continuous PCM mixer thread."""
         self._cmd = _find_player_cmd() if enabled else None
         self.available = self._cmd is not None
         self.muted = not self.available
         self._closed = False
-        self._queue: queue.Queue[Optional[bytes]] = queue.Queue(maxsize=6)
+        self._lock = threading.Lock()
+        self._active_buf = bytearray()
+        self._priority_until = 0.0
         self._proc: Optional[subprocess.Popen[bytes]] = None
         self._thread: Optional[threading.Thread] = None
 
@@ -135,23 +143,40 @@ class ChiptunePlayer:
             )
             self._thread.start()
 
-    def _enqueue(self, data: bytes, priority: bool = False) -> None:
-        """Push PCM audio to the playback queue without blocking the UI."""
+    def _submit_pcm(self, data: bytes, priority: bool = False) -> None:
+        """Load PCM into the active buffer without queueing latency."""
         if self._closed or self.muted or not self.available:
             return
-        if priority:
-            while not self._queue.empty():
-                try:
-                    self._queue.get_nowait()
-                except queue.Empty:
-                    break
-        try:
-            self._queue.put_nowait(data)
-        except queue.Full:
-            pass
+        now = time.monotonic()
+        with self._lock:
+            if not priority and now < self._priority_until:
+                return
+            self._active_buf = bytearray(data)
+            if priority:
+                dur = len(data) / (SAMPLE_RATE * 2)
+                self._priority_until = now + dur
+
+    def _next_frame(self) -> bytes:
+        """Pop one fixed 20ms PCM frame, padding with silence if idle."""
+        if self.muted:
+            with self._lock:
+                self._active_buf.clear()
+            return SILENCE_FRAME
+        with self._lock:
+            if not self._active_buf:
+                return SILENCE_FRAME
+            if len(self._active_buf) >= FRAME_BYTES:
+                frame = bytes(self._active_buf[:FRAME_BYTES])
+                del self._active_buf[:FRAME_BYTES]
+                return frame
+            frame = bytes(self._active_buf) + (
+                b"\x00" * (FRAME_BYTES - len(self._active_buf))
+            )
+            self._active_buf.clear()
+            return frame
 
     def _open_stream(self) -> Optional[subprocess.Popen[bytes]]:
-        """Spawn the streaming audio subprocess."""
+        """Spawn the low-latency streaming audio subprocess."""
         if self._cmd is None:
             return None
         try:
@@ -167,23 +192,30 @@ class ChiptunePlayer:
             return None
 
     def _worker(self) -> None:
-        """Drain queued PCM chunks into the audio player's stdin."""
+        """Continuously feed 20ms PCM frames to prevent buffer underruns."""
         proc = self._open_stream()
         self._proc = proc
         if proc is None or proc.stdin is None:
             return
+        frame_sec = FRAME_MS / 1000.0
+        next_tick = time.monotonic()
         try:
             while not self._closed:
-                chunk = self._queue.get()
-                if chunk is None:
-                    break
                 if proc.poll() is not None:
                     break
+                frame = self._next_frame()
                 try:
-                    proc.stdin.write(chunk)
+                    proc.stdin.write(frame)
                     proc.stdin.flush()
                 except OSError:
                     break
+                next_tick += frame_sec
+                now = time.monotonic()
+                delay = next_tick - now
+                if delay > 0.0:
+                    time.sleep(delay)
+                elif delay < -frame_sec * 3:
+                    next_tick = now
         finally:
             self._terminate_proc(proc)
 
@@ -202,12 +234,20 @@ class ChiptunePlayer:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
+    def clear(self) -> None:
+        """Stop any currently playing note immediately."""
+        with self._lock:
+            self._active_buf.clear()
+            self._priority_until = 0.0
+
     def toggle_mute(self) -> bool:
         """Toggle mute state and return the new muted boolean."""
         if not self.available:
             return True
         self.muted = not self.muted
-        if not self.muted:
+        if self.muted:
+            self.clear()
+        else:
             self.play_ui_click()
         return self.muted
 
@@ -224,14 +264,14 @@ class ChiptunePlayer:
         if backtrack:
             freq = PENTATONIC_HZ[max(0, idx - 3)] * 0.75
             tone = synthesize_tone(
-                freq, 0.032, wave="triangle", volume=0.14
+                freq, 0.036, wave="triangle", volume=0.14
             )
         else:
             freq = PENTATONIC_HZ[idx]
             tone = synthesize_tone(
-                freq, 0.030, wave="square25", volume=0.15
+                freq, 0.036, wave="square25", volume=0.15
             )
-        self._enqueue(tone)
+        self._submit_pcm(tone)
 
     def play_solve(self, progress: float) -> None:
         """Play a rising 8-bit radar pulse as BFS approaches the exit."""
@@ -243,12 +283,12 @@ class ChiptunePlayer:
         freq = PENTATONIC_HZ[idx]
         tone = synthesize_tone(
             freq,
-            0.038,
+            0.040,
             wave="triangle",
             volume=0.18,
             end_freq=freq * (1.0 + 0.08 * math.sin(clamped * math.pi)),
         )
-        self._enqueue(tone)
+        self._submit_pcm(tone)
 
     def play_trace(self, progress: float) -> None:
         """Play an ascending lock-in note as the shortest path is drawn."""
@@ -258,34 +298,26 @@ class ChiptunePlayer:
             3 + int(clamped * (len(PENTATONIC_HZ) - 4)),
         )
         tone = synthesize_tone(
-            PENTATONIC_HZ[idx], 0.035, wave="square", volume=0.18
+            PENTATONIC_HZ[idx], 0.038, wave="square", volume=0.18
         )
-        self._enqueue(tone)
+        self._submit_pcm(tone)
 
     def play_victory(self) -> None:
         """Play the 8-bit victory fanfare when the exit is reached."""
-        self._enqueue(synthesize_victory_fanfare(), priority=True)
+        self._submit_pcm(synthesize_victory_fanfare(), priority=True)
 
     def play_ui_click(self) -> None:
         """Play a crisp 8-bit UI confirmation chirp."""
         tone = synthesize_tone(
-            659.25, 0.025, wave="square25", volume=0.16, end_freq=880.0
+            659.25, 0.028, wave="square25", volume=0.16, end_freq=880.0
         )
-        self._enqueue(tone, priority=True)
+        self._submit_pcm(tone, priority=True)
 
     def close(self) -> None:
         """Shut down the background audio thread and player process."""
         if self._closed:
             return
         self._closed = True
-        while not self._queue.empty():
-            try:
-                self._queue.get_nowait()
-            except queue.Empty:
-                break
-        try:
-            self._queue.put_nowait(None)
-        except queue.Full:
-            pass
+        self.clear()
         if self._thread is not None:
             self._thread.join(timeout=0.5)

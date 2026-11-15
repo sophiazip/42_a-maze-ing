@@ -735,7 +735,7 @@ class MazeWindow:
             self.sound.play_victory()
             self._last_sound_tick = now
             return
-        if now - self._last_sound_tick < 0.045:
+        if now - self._last_sound_tick < 0.036:
             return
         if phase == "carving":
             steps = self.session.generator.generation_steps
@@ -816,6 +816,7 @@ class MazeWindow:
             self._dirty = True
         elif keycode in KEYS_SPACE:
             self.session.replay_or_skip()
+            self.sound.clear()
             self.sound.play_ui_click()
             self._last_anim_tick = time.monotonic()
             self._dirty = True
