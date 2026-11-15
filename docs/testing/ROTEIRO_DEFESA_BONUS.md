@@ -76,17 +76,24 @@ Abra o arquivo `mazegen/dsu.py` (ou `generator.py`) e mostre:
 Apresente o processo de construção procedural do labirinto operando em tempo real.
 
 ### 4.1 Demonstração no Terminal (ASCII)
-Execute o gerador em modo animado:
+Execute o gerador no modo terminal e pressione **`v`** no menu interativo (`[v] Animate`):
 ```bash
-python3 a_maze_ing.py config.txt --animate
+python3 a_maze_ing.py config.txt --display ascii
 ```
-- Aponte a ausência de piscamento de tela (*flickering*), garantida pelo reposicionamento de cursor com a sequência ANSI `\033[H`.
-- Mostre a pilha de visitação do algoritmo avançando e retrocedendo durante a busca em profundidade.
+- Aponte a ausência de piscamento de tela (*flickering*), garantida pela limpeza com `\033[2J\033[H`.
+- Mostre também os atalhos **`b`** (Rainbow) e **`e`** (randomizar entrada/saída).
 
-### 4.2 Demonstração no MiniLibX (Gráfica)
-Se o ambiente contar com a biblioteca gráfica MLX compilada:
+### 4.2 Demonstração no MiniLibX (Gráfica + Áudio 8-bit)
+Com o ambiente MLX ativo:
 ```bash
-python3 a_maze_ing.py config.txt --display=mlx --animate
+python3 a_maze_ing.py config.txt --display mlx
 ```
-- Aponte a abertura das paredes sendo desenhada tile a tile na janela gráfica.
-- Explique a arquitetura não-bloqueante: a geração avança a cada pulso do `mlx.loop_hook`, permitindo que os eventos do X11 continuem sendo processados sem travar a interface gráfica.
+- A animação inicia automaticamente em 4 fases (`CARVING` → `SOLVING` → `LOCKING` → `SOLVED!`), acompanhada pela trilha 8-bit chiptune (veja [[docs/architecture/GUIA_AUDIO_E_ANIMACAO.md]]).
+- Demonstre os controles ao avaliador:
+  - **`1` / `R`**: regenera com animação do zero.
+  - **`A`**: alterna entre `backtracker`, `kruskal` e `prim` ao vivo.
+  - **`E`**: randomiza `ENTRY` e `EXIT` fora do padrão `"42"`.
+  - **`B`**: ativa/desativa o modo **Rainbow** contínuo.
+  - **`M`**: alterna o áudio 8-bit (`M:Snd` / `M:Mut`).
+  - **`Space`**: pula a animação atual ou reproduz novamente (`Spc:Skp` / `Spc:Ply`).
+- Explique a arquitetura não-bloqueante: `MazeSession.step_animation()` avança a cada pulso do `mlx_loop_hook`, enquanto `ChiptunePlayer` envia frames PCM fixos de 20ms em thread separada.

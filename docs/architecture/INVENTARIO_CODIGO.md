@@ -1,40 +1,46 @@
 # Inventário de Arquitetura e Contratos de Código — A-Maze-ing
 
-Este documento cataloga a arquitetura de software planejada para o projeto, especificando a responsabilidade de cada módulo, as interfaces públicas das classes e o fluxo de dados entre os componentes do sistema.
+Este documento cataloga a arquitetura real do projeto **A-Maze-ing**, especificando a responsabilidade de cada módulo, as interfaces públicas das classes e o fluxo de dados entre os componentes do sistema.
+
+Veja também:
+- [[docs/architecture/GUIA_ESTUDO_MANDATORIO.md]]
+- [[docs/architecture/GUIA_ESTUDO_BONUS.md]]
+- [[docs/architecture/GUIA_AUDIO_E_ANIMACAO.md]]
 
 ---
 
 ## 1. Visão Geral da Arquitetura
 
-O sistema é dividido em três camadas bem desacopladas: Núcleo de Domínio (`mazegen/generator.py`), Configuração e I/O (`mazegen/config.py` e rotinas de salvamento) e Camada de Apresentação (`renderer_ascii.py` e `renderer_mlx.py`).
+O sistema é dividido em camadas bem desacopladas: Configuração (`mazegen/config.py`), Núcleo de Domínio (`mazegen/generator.py`), Estado e Animação (`mazegen/session.py`), Áudio 8-bit (`mazegen/sound.py`) e Camada de Apresentação (`renderer_ascii.py` e `renderer_mlx.py`).
 
 ```
                               config.txt
                                   │
                                   ▼
                           mazegen/config.py
-                           (MazeConfig)
+                      (MazeConfig, ALGORITHMS)
                                   │
                                   ▼
                         mazegen/generator.py
-                          (MazeGenerator)
-                           │           │
-            ┌──────────────┴───────────┴──────────────┐
-            ▼                                         ▼
-   mazegen/renderer_ascii.py               mazegen/renderer_mlx.py
-      (Interface Terminal)                   (Interface Gráfica)
-            │                                         │
-            └─────────────────┬───────────────────────┘
-                              ▼
-                         a_maze_ing.py
-                        (Entry Point CLI)
-                              │
-                              ▼
-                          maze.txt
-                              │
-                              ▼
-                       maze_analyzer.py
-                    (Validador Independente)
+             (MazeGenerator, GenerationStep, BFS, Braiding)
+                          │               │
+         ┌────────────────┘               └────────────────┐
+         ▼                                                 ▼
+mazegen/renderer_ascii.py                         mazegen/session.py
+   (Interface Terminal)                      (MazeSession + Animação + Temas)
+         │                                                 │
+         │                                    ┌────────────┴────────────┐
+         │                                    ▼                         ▼
+         │                         mazegen/renderer_mlx.py       mazegen/sound.py
+         │                            (MazeWindow / X11)        (ChiptunePlayer)
+         │                                    │
+         └──────────────────┬─────────────────┘
+                            ▼
+                      a_maze_ing.py
+                     (Entry Point CLI)
+                            │
+                            ▼
+                        maze.txt
 ```
 
 ---
@@ -45,109 +51,82 @@ O sistema é dividido em três camadas bem desacopladas: Núcleo de Domínio (`m
 
 Responsável pelo carregamento, análise sintática e validação estrita dos parâmetros do labirinto.
 
-- **Classe `MazeConfig`:**
-  - `@dataclass(frozen=True)`
-  - Campos:
-    - `width: int`: largura em número de células (colunas).
-    - `height: int`: altura em número de células (linhas).
-    - `entry: tuple[int, int]`: coordenada de entrada no formato cartesiano `(x, y)`.
-    - `exit: tuple[int, int]`: coordenada de saída no formato cartesiano `(x, y)`.
-    - `output_file: str`: caminho do arquivo de saída a ser gravado.
-    - `perfect: bool`: define se o labirinto deve ser árvore geradora única (`True`) ou tabuleiro Pac-Man com circuitos (`False`).
-    - `seed: Optional[int]`: semente numérica para garantir reprodutibilidade.
-    - `algorithm: str`: identificador do gerador (`backtracker`, `kruskal`, `prim`).
-    - `visual_mode: str`: modo de visualização inicial (`ascii` ou `mlx`).
-
-- **Funções:**
-  - `parse_config(filepath: str) -> MazeConfig`:
-    - Abre o arquivo usando gerenciador de contexto `with open(...)`.
-    - Ignora linhas em branco e comentários iniciados com `#`.
-    - Separa chaves e valores dividindo estritamente pelo primeiro caractere `=`.
-    - Valida que todas as 6 chaves mandatórias estão presentes.
-    - Converte strings para inteiros, booleanos e tuplas cartesianas.
-    - Executa validações de consistência: `width > 0`, `height > 0`, entrada e saída contidas nos limites da grade e não sobrepostas (`entry != exit`).
-    - Em caso de inconsistência, levanta exceção customizada `ConfigError` contendo mensagem explicativa amigável.
+- **Constantes centralizadas:**
+  - `MANDATORY_KEYS`: `WIDTH`, `HEIGHT`, `ENTRY`, `EXIT`, `OUTPUT_FILE`, `PERFECT`.
+  - `OPTIONAL_KEYS`: `SEED`, `ALGORITHM`, `DISPLAY`.
+  - `ALGORITHMS: Tuple[str, ...] = ("backtracker", "kruskal", "prim")` e `VALID_ALGORITHMS = frozenset(ALGORITHMS)`.
+  - `VALID_DISPLAYS = frozenset({"ascii", "mlx"})`.
+- **Classe `MazeConfig` (`@dataclass(frozen=True)`):**
+  - Campos: `width`, `height`, `entry`, `exit`, `output_file`, `perfect`, `seed: Optional[int] = None`, `algorithm: str = "backtracker"`, `display: str = "ascii"`.
+- **Função `parse_config(path: str) -> MazeConfig`:**
+  - Lê pares `KEY=VALUE` ignorando linhas vazias e comentários `#`.
+  - Valida chaves obrigatórias, tipos, limites (`0 <= x < width`, `0 <= y < height`, `entry != exit`) e levanta `ConfigError` em qualquer inconsistência.
 
 ---
 
 ### 2.2 `mazegen/generator.py`
 
-Núcleo computacional do sistema. É o componente exigido pelo Capítulo VI do subject para publicação como pacote reutilizável no arquivo `mazegen-*.whl`.
+Núcleo computacional standalone exportado em `mazegen/__init__.py` para empacotamento em `mazegen-*.whl`.
 
-- **Enum `Direction(IntFlag)`:**
-  - `NORTH = 1`, `EAST = 2`, `SOUTH = 4`, `WEST = 8`.
-  - Propriedades auxiliares:
-    - `opposite -> Direction`: retorna a direção oposta (`NORTH <-> SOUTH`, `EAST <-> WEST`).
-    - `step -> tuple[int, int]`: retorna a tupla `(d_row, d_col)` correspondente.
-
+- **Enum `Direction(IntFlag)`:** `NORTH = 1`, `EAST = 2`, `SOUTH = 4`, `WEST = 8`, com propriedades `opposite`, `step` e `letter`.
+- **Dataclass `GenerationStep`:** registra `kind` (`"carve"`, `"backtrack"`, `"braid"`), `cell_a`, `cell_b`, `direction` e `active` para reprodução animada.
+- **Classe `_DisjointSetUnion`:** Union-Find com compressão de caminho (`find`) e união por posto (`union`) para o algoritmo de Kruskal.
 - **Classe `MazeGenerator`:**
-  - `__init__(config: MazeConfig) -> None`:
-    - Armazena a configuração.
-    - Instancia o gerador de números pseudoaleatórios `random.Random(config.seed)`.
-    - Inicializa a matriz interna `grid: list[list[int]]` com dimensões `[height][width]`, preenchendo cada posição com `int(ALL_WALLS)`.
-    - Calcula as posições ocupadas pelo padrão "42" e as marca como células fechadas não-navegáveis.
-  - `generate() -> None`:
-    - Se `config.perfect == True`: executa a geração de árvore única através do algoritmo escolhido (`_run_backtracker`, `_run_kruskal` ou `_run_prim`).
-    - Se `config.perfect == False`: gera a base perfeita inicial, assegura a abertura dos 4 cantos e do centro, e abre paredes controladas para introduzir ciclos ($L \ge 2$) mantendo os becos sem saída abaixo do limite exigido.
-  - `braid() -> None`:
-    - Localiza todos os nós de grau 1 adjacentes a corredores navegáveis.
-    - Remove paredes divisórias até que a contagem de becos sem saída reais chegue a zero, rejeitando candidatos que gerem áreas $3 \times 3$ abertas.
-  - `solve() -> tuple[list[tuple[int, int]], str]`:
-    - Executa busca em largura (BFS) da entrada `(entry_row, entry_col)` até a saída `(exit_row, exit_col)`.
-    - Retorna a lista contendo as coordenadas das células percorridas e a string contígua com as direções (`N`, `E`, `S`, `W`).
-  - `to_hex_rows() -> list[str]`:
-    - Converte cada linha da matriz de inteiros em uma string formada por dígitos hexadecimais em caixa alta (`0-9`, `A-F`).
-  - `write_output_file(destination_path: Optional[str] = None) -> None`:
-    - Grava o arquivo físico de saída seguindo rigorosamente a estrutura estipulada pelo subject: linhas da grade, linha vazia, coordenadas da entrada, coordenadas da saída e menor caminho.
+  - Aceita `config: Optional[MazeConfig]` ou parâmetros nomeados (`width`, `height`, `entry`, `exit`, `perfect`, `seed`, `algorithm`).
+  - `_compute_pattern_cells()`: centraliza o padrão `"42"` (`PATTERN_42`) ou o omite com aviso em `stderr` se o mapa for pequeno ou colidir com `entry`/`exit`.
+  - `generate(record_steps: bool = False)`: executa `_run_backtracker`, `_run_kruskal` ou `_run_prim`, garante conectividade (`_ensure_full_connectivity`), aplica trançamento e loops (`_braid_and_add_loops`) quando `perfect=False`, e popula `generation_steps` se solicitado.
+  - `shortest_path() -> str` e `shortest_path_coords() -> List[Coord]`: usam `_bfs_solve()` para encontrar a menor rota em `N/E/S/W`.
+  - `solve_with_trace() -> Tuple[List[Cell], List[Cell]]`: retorna `(explored_cells, shortest_path_cells)` para animação da onda BFS.
+  - `to_hex_rows()` e `write_output(filepath, path=None)`: serializam a grade em hexadecimal e gravam o arquivo de saída.
+- **Função `pick_random_endpoints(width, height, blocked_cells, rng=None)`:** sorteia novas coordenadas `(entry, exit)` fora das células do `"42"`, priorizando distância mínima de Manhattan `(width + height) // 3`.
 
 ---
 
-### 2.3 `mazegen/renderer_ascii.py`
+### 2.3 `mazegen/session.py`
 
-Responsável pela apresentação em modo texto no terminal padrão.
+Máquina de estados de apresentação e animação desacoplada do servidor gráfico X11 (permitindo testes unitários *headless*).
 
-- **Funções Principais:**
-  - `draw_maze_to_string(generator: MazeGenerator, show_path: bool, color_theme: str) -> str`:
-    - Monta uma representação gráfica em caracteres Unicode/ASCII para exibir paredes verticais, horizontais e interseções.
-    - Aplica sequências ANSI de cor para realçar paredes, entrada (`E`), saída (`X`), células do número "42" e a rota calculada.
-  - `run_ascii_interactive_loop(generator: MazeGenerator) -> None`:
-    - Exibe o labirinto renderizado e um menu de comandos de tecla simples:
-      - `1` ou `R`: regenera o labirinto com nova semente aleatória.
-      - `2` ou `P`: alterna a visibilidade do menor caminho (*toggle path*).
-      - `3` ou `C`: cicla a cor das paredes entre os temas disponíveis.
-      - `4` ou `Q`: encerra a execução do programa.
+- **Paletas e Cores:** `WALL_PALETTE`, `PATTERN_PALETTE` e `_hsv_to_argb(hue, sat, val)` para o modo Rainbow.
+- **Classe `MazeSession`:**
+  - Gerencia `show_path`, `wall_color_index`, `pattern_color_index`, `rainbow` e `rainbow_phase`.
+  - Ações de usuário: `toggle_path()`, `toggle_rainbow()`, `cycle_wall_color()`, `cycle_pattern_color()`, `cycle_algorithm()`, `regenerate()`, `randomize_endpoints()`.
+  - Máquina de estados de animação (`anim_phase`: `"carving"` → `"solving"` → `"tracing"` → `"celebrate"` → `"idle"`): `start_carve_animation()`, `start_solve_animation()`, `step_animation()`, `replay_or_skip()`, `skip_animation()`.
 
 ---
 
-### 2.4 `mazegen/renderer_mlx.py`
+### 2.4 `mazegen/sound.py`
 
-Interface gráfica nativa operando com a biblioteca gráfica MiniLibX (MLX via X11).
+Motor de áudio 8-bit chiptune em Python puro (detalhado em [[docs/architecture/GUIA_AUDIO_E_ANIMACAO.md]]).
+
+- **Síntese:** `synthesize_tone()`, `synthesize_sequence()`, `synthesize_victory_fanfare()` sobre `PENTATONIC_HZ` a `22050 Hz` (`s16le`).
+- **Classe `ChiptunePlayer`:**
+  - Thread daemon enviando frames contínuos de `20ms` (`FRAME_BYTES = 882`) para `paplay --raw --latency-msec=40 --process-time-msec=15` (ou `pw-play`).
+  - Métodos reativos: `play_carve()`, `play_solve()`, `play_trace()`, `play_victory()`, `play_ui_click()`, `toggle_mute()`, `clear()`, `close()`.
+
+---
+
+### 2.5 `mazegen/renderer_ascii.py`
+
+Renderizador Unicode box-drawing com cores ANSI para terminal.
+
+- `render_ascii(gen, show_path=True, wall_color_idx=0, pattern_color_idx=0) -> str`: desenha junções precisas (`JUNCTION_GLYPHS`), ponte de caminho, entrada (`◆`), saída (`★`) e padrão `"42"`.
+- `run_ascii_loop(...)` e `_animate_ascii(...)`: menu interativo com regeneração (`1/r`), caminho (`2/p`), tema (`3/c`), cor do 42 (`t`), rainbow (`b`), algoritmo (`a`), randomizar pontos (`e`), animação (`v`) e saída (`4/q`).
+
+---
+
+### 2.6 `mazegen/renderer_mlx.py`
+
+Interface gráfica nativa via MiniLibX (`mlx-2.2`).
 
 - **Classe `MazeWindow`:**
-  - `__init__(generator: MazeGenerator, tile_size: int = 24) -> None`:
-    - Inicializa o contexto MLX via `mlx.init()`.
-    - Cria a janela do sistema com dimensões proporcionais à grade: `width * tile_size` por `height * tile_size`.
-    - Aloca um buffer de imagem com `mlx.new_image()`.
-  - `render_frame() -> None`:
-    - Desenha cada célula e suas paredes correspondentes preenchendo os pixels no buffer.
-    - Se a rota estiver ativada, sobrepõe os marcadores coloridos do menor caminho.
-    - Envia o buffer pronto para a janela com `mlx.put_image_to_window()`.
-  - `on_key_press(keycode: int) -> int`:
-    - Captura eventos de teclado:
-      - Tecla `R` ou `1`: aciona `generator.regenerate()` e redesenha o buffer.
-      - Tecla `P` ou `2`: inverte o booleano `show_path` e atualiza a janela.
-      - Tecla `C` ou `3`: cicla a paleta de cores.
-      - Tecla `Escape` ou `Q`: fecha a janela e encerra o loop de eventos de forma limpa.
+  - Consome `MazeSession` e `ChiptunePlayer`.
+  - Rasteriza piso xadrez, trilhas de brilho (`_blend_argb`), fita contínua do caminho (`_draw_path_ribbon`), beacons concêntricos (`_draw_beacon`), paredes e barras HUD superior/inferior.
+  - Loop não-bloqueante `_on_loop`: avança animações a ~60 FPS (`0.016s`), rainbow a ~20 FPS (`0.05s`) e dispara notas sincronizadas via `_emit_animation_sound()`.
+  - Atalhos (`_on_key_press`): `1/R` (Regen), `2/P` (Path), `3/C` (Tema), `T` (42), `B` (Rainbow), `A` (Algo), `E` (Pontos aleatórios), `M` (Mute), `Space` (Skip/Play), `4/Q/Esc` (Sair).
 
 ---
 
-### 2.5 `a_maze_ing.py`
+### 2.7 `a_maze_ing.py` e `tests/`
 
-Ponto de entrada obrigatório na raiz do repositório.
-
-- **Comportamento do `main`:**
-  - Verifica se o caminho do arquivo de configuração foi fornecido via `sys.argv[1]`. Em caso negativo, exibe a sintaxe de uso e encerra com código de saída 1.
-  - Chama `parse_config(sys.argv[1])` encapsulado em bloco `try-except` para interceptar erros sem que o interpretador exiba *traceback* descontrolado.
-  - Instancia `MazeGenerator(config)`.
-  - Executa a geração do labirinto e salva o resultado no caminho indicado por `config.output_file`.
-  - Inicia a visualização interativa configurada (ASCII ou MLX).
+- **`a_maze_ing.py`**: CLI principal com suporte a `--display ascii|mlx`, execução de `MazeGenerator.generate(record_steps=True)`, gravação do arquivo de saída e tratamento limpo de erros.
+- **`tests/`**: suíte `unittest` cobrindo configuração (`test_config.py`), algoritmos/trançamento/trace/endpoints (`test_generator.py`), renderização e ciclo de vida de `MazeSession` (`test_renderer.py`) e síntese/player 8-bit (`test_sound.py`).

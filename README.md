@@ -15,6 +15,7 @@ docs/
 ├── architecture/
 │   ├── GUIA_ESTUDO_MANDATORIO.md      # Grafos, DFS, bitwise, BFS, Pac-Man e empacotamento
 │   ├── GUIA_ESTUDO_BONUS.md           # Braiding (zero dead-ends), Kruskal (DSU), Prim e animação
+│   ├── GUIA_AUDIO_E_ANIMACAO.md       # Animações, game-feel, rainbow, endpoints e áudio 8-bit
 │   └── INVENTARIO_CODIGO.md           # Mapeamento de módulos, classes e contratos de interface
 ├── flashcards/
 │   └── FLASHCARDS_DEFESA.md           # Cartões de perguntas e respostas para ensaio de avaliação
@@ -39,8 +40,9 @@ docs/
 
 ### Para o Estudo Teórico e de Código
 - [Guia de Estudo Mandatório](docs/architecture/GUIA_ESTUDO_MANDATORIO.md): aprofundamento em teoria dos grafos (árvores geradoras), operações bitwise com `IntFlag`, prevenção de estouro de pilha no DFS e regras do tabuleiro Pac-Man.
-- [Guia de Estudo de Bônus](docs/architecture/GUIA_ESTUDO_BONUS.md): implementação do algoritmo de braiding, estrutura Disjoint Set Union (DSU) com compressão de caminho e união por posto para Kruskal, e controle de animação no MLX.
-- [Inventário de Código](docs/architecture/INVENTARIO_CODIGO.md): especificação dos módulos `mazegen/config.py`, `mazegen/generator.py`, `mazegen/renderer_ascii.py` e `mazegen/renderer_mlx.py`.
+- [Guia de Estudo de Bônus](docs/architecture/GUIA_ESTUDO_BONUS.md) ([[docs/architecture/GUIA_ESTUDO_BONUS.md]]): implementação do algoritmo de braiding, estrutura Disjoint Set Union (DSU) com compressão de caminho e união por posto para Kruskal, e controle de animação no MLX.
+- [Guia de Áudio 8-bit e Animações](docs/architecture/GUIA_AUDIO_E_ANIMACAO.md) ([[docs/architecture/GUIA_AUDIO_E_ANIMACAO.md]]): máquina de estados de animação (`carving` → `solving` → `tracing` → `celebrate`), modo Rainbow HSV, randomização de endpoints e sintetizador chiptune em streaming contínuo de 20ms.
+- [Inventário de Código](docs/architecture/INVENTARIO_CODIGO.md) ([[docs/architecture/INVENTARIO_CODIGO.md]]): especificação atualizada dos módulos `config.py`, `generator.py`, `session.py`, `sound.py`, `renderer_ascii.py` e `renderer_mlx.py`.
 
 ### Para a Preparação da Defesa (Peer-Evaluation)
 - [Flashcards de Defesa](docs/flashcards/FLASHCARDS_DEFESA.md): perguntas técnicas pontuais para simulações de arguição oral entre a dupla.
