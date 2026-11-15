@@ -411,7 +411,7 @@ class MazeWindow:
         cfg = self.session.config
         mode = "PERFECT" if cfg.perfect else "BRAIDED"
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, 26,
+            self.mlx_ptr, self.win, self.PAD, 13,
             COLOR_TEXT_ACCENT, "A-MAZE-ING",
         )
         meta = self._fit(
@@ -420,10 +420,10 @@ class MazeWindow:
         )
         meta_x = self.win_w - self.PAD - len(meta) * self.FONT_WIDTH
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, meta_x, 26, COLOR_TEXT_DIM, meta
+            self.mlx_ptr, self.win, meta_x, 13, COLOR_TEXT_DIM, meta
         )
 
-        footer_y = self.win_h - self.BOTTOM_BAR + 25
+        footer_y = self.win_h - self.BOTTOM_BAR + 13
         controls = self._fit(
             "1:Regen   2:Path   3:Theme   T:42   A:Algo   4:Quit",
             self.win_w - 2 * self.PAD - 40,
