@@ -1,11 +1,11 @@
-"""Interactive MiniLibX (MLX) graphical renderer for A-Maze-ing."""
+"""Interactive MiniLibX (MLX) architectural renderer for A-Maze-ing."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 import importlib
 import random
-from typing import Any, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
 from mazegen.generator import Direction, MazeGenerator
@@ -18,27 +18,36 @@ try:
 except ImportError:
     pass
 
-WALL_PALETTE: Tuple[Tuple[str, int], ...] = (
-    ("Green", 0xFF34A853),
-    ("White", 0xFFF1F1F5),
-    ("Cyan", 0xFF22D3EE),
-    ("Amber", 0xFFFBBF24),
-    ("Violet", 0xFFC084FC),
-    ("Coral", 0xFFFB7185),
+# (name, wall_color, path_color, path_tint_color)
+WALL_PALETTE: Tuple[Tuple[str, int, int, int], ...] = (
+    ("Cyber Emerald", 0xFF10B981, 0xFF38BDF8, 0xFF0C2D42),
+    ("Synthwave", 0xFFF43F5E, 0xFF22D3EE, 0xFF0E3440),
+    ("Amber Blueprint", 0xFFF59E0B, 0xFF60A5FA, 0xFF13294B),
+    ("Nordic Ice", 0xFFE2E8F0, 0xFF818CF8, 0xFF1E224A),
+    ("Violet Pulse", 0xFFA855F7, 0xFF34D399, 0xFF0D3326),
 )
 
-PATTERN_PALETTE: Tuple[Tuple[str, int], ...] = (
-    ("Forest", 0xFF2E6F40),
-    ("Slate", 0xFF475569),
-    ("Indigo", 0xFF4F46E5),
-    ("Teal", 0xFF0F766E),
+# (name, fill_color, accent_color)
+PATTERN_PALETTE: Tuple[Tuple[str, int, int], ...] = (
+    ("Slate", 0xFF1E293B, 0xFF334155),
+    ("Forest", 0xFF14532D, 0xFF166534),
+    ("Indigo", 0xFF312E81, 0xFF4338CA),
+    ("Crimson", 0xFF4C0519, 0xFF881337),
 )
 
-COLOR_BG = 0xFF050508
-COLOR_ENTRY = 0xFF4ADE80
-COLOR_EXIT = 0xFFEF4444
-COLOR_PATH = 0xFF818CF8
-COLOR_TEXT = 0xFFE8E8F0
+ALGORITHMS: Tuple[str, ...] = ("backtracker", "kruskal", "prim")
+
+COLOR_BG = 0xFF080A0F
+COLOR_HUD = 0xFF111520
+COLOR_HUD_BORDER = 0xFF232A3B
+COLOR_FLOOR_A = 0xFF0B0E14
+COLOR_FLOOR_B = 0xFF0F141D
+COLOR_ENTRY_OUTER = 0xFF22C55E
+COLOR_ENTRY_INNER = 0xFFBBF7D0
+COLOR_EXIT_OUTER = 0xFFEF4444
+COLOR_EXIT_INNER = 0xFFFECACA
+COLOR_TEXT = 0xFFE2E8F0
+COLOR_TEXT_ACCENT = 0xFF38BDF8
 
 KEY_1 = 49
 KEY_2 = 50
@@ -48,6 +57,7 @@ KEY_NP_1 = 65457
 KEY_NP_2 = 65458
 KEY_NP_3 = 65459
 KEY_NP_4 = 65460
+KEY_A = 97
 KEY_C = 99
 KEY_P = 112
 KEY_Q = 113
@@ -73,21 +83,41 @@ class MazeSession:
         self.pattern_color_index = 0
 
     @property
+    def theme_name(self) -> str:
+        """Return the active theme name."""
+        return WALL_PALETTE[self.wall_color_index][0]
+
+    @property
     def wall_color(self) -> int:
         """Return the current 0xAARRGGBB wall color."""
         return WALL_PALETTE[self.wall_color_index][1]
 
     @property
+    def path_color(self) -> int:
+        """Return the current 0xAARRGGBB path ribbon color."""
+        return WALL_PALETTE[self.wall_color_index][2]
+
+    @property
+    def path_tint(self) -> int:
+        """Return the current 0xAARRGGBB path cell tint color."""
+        return WALL_PALETTE[self.wall_color_index][3]
+
+    @property
     def pattern_color(self) -> int:
-        """Return the current 0xAARRGGBB color for '42' cells."""
+        """Return the current 0xAARRGGBB fill color for '42' cells."""
         return PATTERN_PALETTE[self.pattern_color_index][1]
+
+    @property
+    def pattern_accent(self) -> int:
+        """Return the current 0xAARRGGBB inner bevel color for '42' cells."""
+        return PATTERN_PALETTE[self.pattern_color_index][2]
 
     def toggle_path(self) -> None:
         """Toggle shortest path visibility."""
         self.show_path = not self.show_path
 
     def cycle_wall_color(self) -> None:
-        """Advance to the next wall color."""
+        """Advance to the next color theme."""
         self.wall_color_index = (
             self.wall_color_index + 1
         ) % len(WALL_PALETTE)
@@ -97,6 +127,15 @@ class MazeSession:
         self.pattern_color_index = (
             self.pattern_color_index + 1
         ) % len(PATTERN_PALETTE)
+
+    def cycle_algorithm(self) -> None:
+        """Switch to the next generation algorithm and regenerate."""
+        cur_idx = ALGORITHMS.index(self.config.algorithm)
+        next_algo = ALGORITHMS[(cur_idx + 1) % len(ALGORITHMS)]
+        self.config = replace(self.config, algorithm=next_algo)
+        self.generator = MazeGenerator(self.config)
+        self.generator.generate()
+        self.generator.write_output(self.config.output_file)
 
     def regenerate(self, seed: Optional[int] = None) -> None:
         """Generate a new maze and update the output file."""
@@ -113,15 +152,22 @@ class MazeSession:
             return set()
         return {(y, x) for x, y in self.generator.shortest_path_coords()}
 
+    def path_coords_ordered(self) -> List[Tuple[int, int]]:
+        """Return ordered (row, col) cells along the shortest path."""
+        if not self.show_path:
+            return []
+        return [(y, x) for x, y in self.generator.shortest_path_coords()]
+
 
 class MazeWindow:
     """Interactive X11 window powered by MiniLibX."""
 
-    PAD = 16
+    PAD = 18
+    TOP_BAR = 44
     BOTTOM_BAR = 44
-    MIN_CELL = 8
-    MAX_CELL = 36
-    MIN_WIN_WIDTH = 440
+    MIN_CELL = 10
+    MAX_CELL = 38
+    MIN_WIN_WIDTH = 620
     WALL_THICKNESS = 2
 
     def __init__(self, config: MazeConfig, generator: MazeGenerator) -> None:
@@ -145,9 +191,11 @@ class MazeWindow:
         self.maze_w = config.width * self.cell
         self.maze_h = config.height * self.cell
         self.win_w = max(self.maze_w + 2 * self.PAD, self.MIN_WIN_WIDTH)
-        self.win_h = self.maze_h + 2 * self.PAD + self.BOTTOM_BAR
+        self.win_h = (
+            self.maze_h + self.TOP_BAR + self.BOTTOM_BAR + 2 * self.PAD
+        )
         self.maze_x = (self.win_w - self.maze_w) // 2
-        self.maze_y = self.PAD
+        self.maze_y = self.TOP_BAR + self.PAD
 
         self.win: Any = self.mlx.mlx_new_window(
             self.mlx_ptr, self.win_w, self.win_h, "A-Maze-ing"
@@ -173,7 +221,10 @@ class MazeWindow:
         """Choose a cell pixel size that fits comfortably on screen."""
         _rc, sw, sh = self.mlx.mlx_get_screen_size(self.mlx_ptr)
         avail_w = max(320, int(sw * 0.85) - 2 * self.PAD)
-        avail_h = max(240, int(sh * 0.85) - 2 * self.PAD - self.BOTTOM_BAR)
+        avail_h = max(
+            240,
+            int(sh * 0.85) - self.TOP_BAR - self.BOTTOM_BAR - 2 * self.PAD,
+        )
         fit_w = avail_w // self.session.config.width
         fit_h = avail_h // self.session.config.height
         return max(self.MIN_CELL, min(self.MAX_CELL, fit_w, fit_h))
@@ -221,23 +272,85 @@ class MazeWindow:
         if mask & int(Direction.EAST):
             self._fill_rect(x + s - t, y, t, s, wall_color)
 
+    def _draw_path_ribbon(
+        self,
+        ordered: List[Tuple[int, int]],
+        path_color: int,
+    ) -> None:
+        """Draw a continuous ribbon connecting cells on the shortest path."""
+        if len(ordered) < 2:
+            return
+        ribbon = max(4, self.cell // 3)
+        half = ribbon // 2
+        for idx in range(len(ordered) - 1):
+            r1, c1 = ordered[idx]
+            r2, c2 = ordered[idx + 1]
+            cx1 = self.maze_x + c1 * self.cell + self.cell // 2
+            cy1 = self.maze_y + r1 * self.cell + self.cell // 2
+            cx2 = self.maze_x + c2 * self.cell + self.cell // 2
+            cy2 = self.maze_y + r2 * self.cell + self.cell // 2
+            x0 = min(cx1, cx2) - half
+            y0 = min(cy1, cy2) - half
+            w = abs(cx2 - cx1) + ribbon
+            h = abs(cy2 - cy1) + ribbon
+            self._fill_rect(x0, y0, w, h, path_color)
+
+    def _draw_beacon(
+        self,
+        row: int,
+        col: int,
+        outer_color: int,
+        inner_color: int,
+    ) -> None:
+        """Draw a concentric square beacon for entry or exit."""
+        x = self.maze_x + col * self.cell
+        y = self.maze_y + row * self.cell
+        outer_pad = max(3, self.cell // 6)
+        inner_pad = max(5, self.cell // 3)
+        self._fill_rect(
+            x + outer_pad,
+            y + outer_pad,
+            self.cell - 2 * outer_pad,
+            self.cell - 2 * outer_pad,
+            outer_color,
+        )
+        self._fill_rect(
+            x + inner_pad,
+            y + inner_pad,
+            max(2, self.cell - 2 * inner_pad),
+            max(2, self.cell - 2 * inner_pad),
+            inner_color,
+        )
+
+    def _draw_hud_bars(self) -> None:
+        """Draw top status bar and bottom control bar chrome."""
+        self._fill_rect(0, 0, self.win_w, self.TOP_BAR, COLOR_HUD)
+        self._fill_rect(0, self.TOP_BAR - 1, self.win_w, 1, COLOR_HUD_BORDER)
+
+        footer_y = self.win_h - self.BOTTOM_BAR
+        self._fill_rect(0, footer_y, self.win_w, self.BOTTOM_BAR, COLOR_HUD)
+        self._fill_rect(0, footer_y, self.win_w, 1, COLOR_HUD_BORDER)
+
+        # Color theme swatch in the bottom-right corner
+        swatch_x = self.win_w - self.PAD - 16
+        swatch_y = footer_y + 14
+        self._fill_rect(
+            swatch_x, swatch_y, 16, 16, self.session.wall_color
+        )
+
     def render(self) -> None:
-        """Redraw the maze, markers, shortest path, and footer legend."""
+        """Redraw the HUD, floor checkerboard, walls, path, and markers."""
         if self._closed:
             return
         self._fill_rect(0, 0, self.win_w, self.win_h, COLOR_BG)
+        self._draw_hud_bars()
 
         gen = self.session.generator
         wall_color = self.session.wall_color
-        pattern_color = self.session.pattern_color
-        path_cells = self.session.path_cell_set()
+        path_set = self.session.path_cell_set()
+        ordered_path = self.session.path_coords_ordered()
         entry_rc = gen.entry_cell
         exit_rc = gen.exit_cell
-
-        marker_pad = max(3, self.cell // 4)
-        marker_size = max(2, self.cell - 2 * marker_pad)
-        fill_pad = self.WALL_THICKNESS
-        fill_size = max(2, self.cell - 2 * fill_pad)
 
         for r in range(gen.height):
             for c in range(gen.width):
@@ -246,45 +359,62 @@ class MazeWindow:
                 rc = (r, c)
                 if rc in gen.blocked_cells:
                     self._fill_rect(
-                        x + fill_pad,
-                        y + fill_pad,
-                        fill_size,
-                        fill_size,
-                        pattern_color,
+                        x, y, self.cell, self.cell, self.session.pattern_color
                     )
-                elif rc == entry_rc:
+                    pad = max(3, self.cell // 4)
                     self._fill_rect(
-                        x + fill_pad,
-                        y + fill_pad,
-                        fill_size,
-                        fill_size,
-                        COLOR_ENTRY,
+                        x + pad,
+                        y + pad,
+                        max(2, self.cell - 2 * pad),
+                        max(2, self.cell - 2 * pad),
+                        self.session.pattern_accent,
                     )
-                elif rc == exit_rc:
+                elif rc in path_set:
                     self._fill_rect(
-                        x + fill_pad,
-                        y + fill_pad,
-                        fill_size,
-                        fill_size,
-                        COLOR_EXIT,
+                        x, y, self.cell, self.cell, self.session.path_tint
                     )
-                elif rc in path_cells:
-                    self._fill_rect(
-                        x + marker_pad,
-                        y + marker_pad,
-                        marker_size,
-                        marker_size,
-                        COLOR_PATH,
+                else:
+                    floor = (
+                        COLOR_FLOOR_A if (r + c) % 2 == 0 else COLOR_FLOOR_B
                     )
+                    self._fill_rect(x, y, self.cell, self.cell, floor)
+
+        self._draw_path_ribbon(ordered_path, self.session.path_color)
+        self._draw_beacon(
+            entry_rc[0], entry_rc[1], COLOR_ENTRY_OUTER, COLOR_ENTRY_INNER
+        )
+        self._draw_beacon(
+            exit_rc[0], exit_rc[1], COLOR_EXIT_OUTER, COLOR_EXIT_INNER
+        )
+
+        for r in range(gen.height):
+            for c in range(gen.width):
                 self._draw_cell_walls(r, c, gen.grid[r][c], wall_color)
 
         self.mlx.mlx_put_image_to_window(
             self.mlx_ptr, self.win, self.img, 0, 0
         )
-        legend = "1: regen    2: path    3: color    4: quit"
-        footer_y = self.maze_y + self.maze_h + 16
+
+        cfg = self.session.config
+        mode = "PERFECT" if cfg.perfect else "BRAIDED"
+        seed_txt = str(cfg.seed) if cfg.seed is not None else "rand"
+        steps = len(gen.shortest_path())
+        header = (
+            f"A-MAZE-ING   |   {cfg.width}x{cfg.height}   |   "
+            f"{cfg.algorithm}   |   {mode}   |   seed {seed_txt}   |   "
+            f"path {steps}"
+        )
         self.mlx.mlx_string_put(
-            self.mlx_ptr, self.win, self.PAD, footer_y, COLOR_TEXT, legend
+            self.mlx_ptr, self.win, self.PAD, 26, COLOR_TEXT_ACCENT, header
+        )
+
+        legend = (
+            f"[1/R] Regen   [2/P] Path   [3/C] {self.session.theme_name}"
+            "   [T] 42   [A] Algo   [4/Q] Quit"
+        )
+        footer_text_y = self.win_h - self.BOTTOM_BAR + 26
+        self.mlx.mlx_string_put(
+            self.mlx_ptr, self.win, self.PAD, footer_text_y, COLOR_TEXT, legend
         )
 
     def _on_expose(self, _param: Any) -> int:
@@ -305,6 +435,9 @@ class MazeWindow:
             self.render()
         elif keycode == KEY_T:
             self.session.cycle_pattern_color()
+            self.render()
+        elif keycode == KEY_A:
+            self.session.cycle_algorithm()
             self.render()
         elif keycode in (KEY_4, KEY_NP_4, KEY_Q, KEY_ESC):
             self._on_close(None)
