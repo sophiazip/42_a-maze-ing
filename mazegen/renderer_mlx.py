@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
 from mazegen.generator import ALL_WALLS, Cell, Direction, MazeGenerator
+from mazegen.sound import ChiptunePlayer
 
 _mlx: Any = None
 MLX_AVAILABLE = False
@@ -61,6 +62,7 @@ KEYS_COLOR = (51, 65459, 99, 67)    # 3, KP_3, c, C
 KEYS_PATTERN = (116, 84)            # t, T
 KEYS_RAINBOW = (98, 66)             # b, B
 KEYS_ALGO = (97, 65)                # a, A
+KEYS_MUTE = (109, 77)               # m, M
 KEYS_SPACE = (32,)                  # Space
 KEYS_QUIT = (52, 65460, 113, 81, 65307)  # 4, KP_4, q, Q, Esc
 
@@ -416,11 +418,13 @@ class MazeWindow:
             )
 
         self.session = MazeSession(config, generator)
+        self.sound = ChiptunePlayer()
         self._closed = False
         self._dirty = False
         now = time.monotonic()
         self._last_rainbow_tick = now
         self._last_anim_tick = now
+        self._last_sound_tick = now
         self.mlx: Any = _mlx.Mlx()
         self.mlx_ptr: Any = self.mlx.mlx_init()
         if not self.mlx_ptr:
@@ -711,9 +715,10 @@ class MazeWindow:
         )
 
         footer_y = self.win_h - self.BOTTOM_BAR + 13
-        space_lbl = "Spc:Skip" if self.session.is_animating else "Spc:Play"
+        space_lbl = "Spc:Skp" if self.session.is_animating else "Spc:Ply"
+        mute_lbl = "M:Mute" if self.sound.muted else "M:Snd"
         controls = self._fit(
-            f"1:Regen 2:Path 3:Theme T:42 B:Rainbow A:Algo {space_lbl} 4:Quit",
+            f"1:Reg 2:Path 3:Col T:42 B:Rbw A:Alg {mute_lbl} {space_lbl} 4:Q",
             self.win_w - 2 * self.PAD - 36,
         )
         self.mlx.mlx_string_put(
@@ -723,6 +728,35 @@ class MazeWindow:
         self.mlx.mlx_do_sync(self.mlx_ptr)
         self._dirty = False
 
+    def _emit_animation_sound(self, prev_phase: str, now: float) -> None:
+        """Trigger 8-bit chiptune notes synchronized with animation phase."""
+        phase = self.session.anim_phase
+        if phase == "celebrate" and prev_phase != "celebrate":
+            self.sound.play_victory()
+            self._last_sound_tick = now
+            return
+        if now - self._last_sound_tick < 0.045:
+            return
+        if phase == "carving":
+            steps = self.session.generator.generation_steps
+            total = max(1, len(steps))
+            idx = min(len(steps) - 1, max(0, self.session.carve_idx - 1))
+            step = steps[idx] if steps else None
+            backtrack = step is not None and step.kind == "backtrack"
+            cell = self.session.active_cell or (0, 0)
+            self.sound.play_carve(
+                self.session.carve_idx / total, cell, backtrack=backtrack
+            )
+            self._last_sound_tick = now
+        elif phase == "solving":
+            total = max(1, len(self.session.solve_explored))
+            self.sound.play_solve(self.session.solve_idx / total)
+            self._last_sound_tick = now
+        elif phase == "tracing":
+            total = max(1, len(self.session.solve_path))
+            self.sound.play_trace(self.session.trace_idx / total)
+            self._last_sound_tick = now
+
     def _on_loop(self, _param: Any) -> None:
         """Redraw pending state, step animations, and animate rainbow mode."""
         if self._closed:
@@ -730,7 +764,9 @@ class MazeWindow:
         now = time.monotonic()
         if self.session.is_animating and now - self._last_anim_tick >= 0.016:
             self._last_anim_tick = now
+            prev_phase = self.session.anim_phase
             if self.session.step_animation():
+                self._emit_animation_sound(prev_phase, now)
                 self._dirty = True
         if self.session.rainbow and now - self._last_rainbow_tick >= 0.05:
             self._last_rainbow_tick = now
@@ -749,26 +785,38 @@ class MazeWindow:
             return
         if keycode in KEYS_REGEN:
             self.session.regenerate()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
             self._dirty = True
         elif keycode in KEYS_PATH:
             self.session.toggle_path()
+            self.sound.play_ui_click()
+            self._last_anim_tick = time.monotonic()
             self._dirty = True
         elif keycode in KEYS_COLOR:
             self.session.cycle_wall_color()
+            self.sound.play_ui_click()
             self._dirty = True
         elif keycode in KEYS_PATTERN:
             self.session.cycle_pattern_color()
+            self.sound.play_ui_click()
             self._dirty = True
         elif keycode in KEYS_RAINBOW:
             self.session.toggle_rainbow()
+            self.sound.play_ui_click()
             self._last_rainbow_tick = time.monotonic()
             self._dirty = True
         elif keycode in KEYS_ALGO:
             self.session.cycle_algorithm()
+            self.sound.play_ui_click()
             self._last_anim_tick = time.monotonic()
+            self._dirty = True
+        elif keycode in KEYS_MUTE:
+            self.sound.toggle_mute()
             self._dirty = True
         elif keycode in KEYS_SPACE:
             self.session.replay_or_skip()
+            self.sound.play_ui_click()
             self._last_anim_tick = time.monotonic()
             self._dirty = True
         elif keycode in KEYS_QUIT:
@@ -785,6 +833,7 @@ class MazeWindow:
             self.mlx.mlx_loop(self.mlx_ptr)
         finally:
             self._closed = True
+            self.sound.close()
             self.mlx.mlx_destroy_image(self.mlx_ptr, self.img)
             self.mlx.mlx_destroy_window(self.mlx_ptr, self.win)
             self.mlx.mlx_release(self.mlx_ptr)
