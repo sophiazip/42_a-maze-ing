@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
 from enum import IntFlag
 import random
 import sys
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from mazegen.config import MazeConfig
 
@@ -80,53 +79,6 @@ ALL_WALLS: int = int(
 )
 
 
-@dataclass(frozen=True)
-class GenerationStep:
-    """Single carving or backtracking event captured during maze generation."""
-
-    kind: str
-    cell_a: Cell
-    cell_b: Optional[Cell]
-    direction: Optional[Direction]
-    active: Cell
-
-
-class _DisjointSetUnion:
-    """Union-Find structure with path compression and union by rank."""
-
-    def __init__(self, items: Iterable[Cell]) -> None:
-        """Initialize each item as its own singleton set."""
-        self._parent: Dict[Cell, Cell] = {item: item for item in items}
-        self._rank: Dict[Cell, int] = {item: 0 for item in items}
-
-    def find(self, item: Cell) -> Cell:
-        """Return the representative root of item's set."""
-        root = item
-        while self._parent[root] != root:
-            root = self._parent[root]
-        curr = item
-        while curr != root:
-            nxt = self._parent[curr]
-            self._parent[curr] = root
-            curr = nxt
-        return root
-
-    def union(self, first: Cell, second: Cell) -> bool:
-        """Merge two sets; return False if they already share a root."""
-        root_a = self.find(first)
-        root_b = self.find(second)
-        if root_a == root_b:
-            return False
-        if self._rank[root_a] < self._rank[root_b]:
-            self._parent[root_a] = root_b
-        elif self._rank[root_a] > self._rank[root_b]:
-            self._parent[root_b] = root_a
-        else:
-            self._parent[root_b] = root_a
-            self._rank[root_a] += 1
-        return True
-
-
 class MazeGenerator:
     """Configurable maze generator supporting perfect and braided modes.
 
@@ -144,7 +96,6 @@ class MazeGenerator:
         exit: Coord = (19, 14),
         perfect: bool = True,
         seed: Optional[int] = None,
-        algorithm: str = "backtracker",
     ) -> None:
         """Initialize the maze grid and reserve the '42' obstacle cells."""
         if config is not None:
@@ -154,7 +105,6 @@ class MazeGenerator:
             self.exit = config.exit
             self.perfect = config.perfect
             self.seed = config.seed
-            self.algorithm = config.algorithm
         else:
             self.width = width
             self.height = height
@@ -162,7 +112,6 @@ class MazeGenerator:
             self.exit = exit
             self.perfect = perfect
             self.seed = seed
-            self.algorithm = algorithm
 
         self._validate_dimensions()
         self._rng = random.Random(self.seed)
@@ -170,8 +119,6 @@ class MazeGenerator:
             [ALL_WALLS for _ in range(self.width)] for _ in range(self.height)
         ]
         self.blocked_cells: Set[Cell] = self._compute_pattern_cells()
-        self.generation_steps: List[GenerationStep] = []
-        self._record_steps = False
         self._generated = False
 
     def _validate_dimensions(self) -> None:
@@ -230,26 +177,6 @@ class MazeGenerator:
             return set()
         return cells
 
-    def _record_step(
-        self,
-        kind: str,
-        cell_a: Cell,
-        cell_b: Optional[Cell],
-        direction: Optional[Direction],
-        active: Cell,
-    ) -> None:
-        """Append a generation event when step recording is enabled."""
-        if self._record_steps:
-            self.generation_steps.append(
-                GenerationStep(
-                    kind=kind,
-                    cell_a=cell_a,
-                    cell_b=cell_b,
-                    direction=direction,
-                    active=active,
-                )
-            )
-
     def _remove_wall(
         self,
         cell_a: Cell,
@@ -290,64 +217,10 @@ class MazeGenerator:
             if unvisited:
                 direction, nxt = self._rng.choice(unvisited)
                 self._remove_wall(current, nxt, direction)
-                self._record_step("carve", current, nxt, direction, nxt)
                 visited.add(nxt)
                 stack.append(nxt)
             else:
-                popped = stack.pop()
-                if stack:
-                    self._record_step(
-                        "backtrack", popped, stack[-1], None, stack[-1]
-                    )
-
-    def _run_kruskal(self) -> None:
-        """Carve a spanning tree using randomized Kruskal with DSU."""
-        playable = [
-            (r, c)
-            for r in range(self.height)
-            for c in range(self.width)
-            if (r, c) not in self.blocked_cells
-        ]
-        dsu = _DisjointSetUnion(playable)
-        edges: List[Tuple[Cell, Cell, Direction]] = []
-        for row, col in playable:
-            for direction in (Direction.EAST, Direction.SOUTH):
-                dr, dc = direction.step
-                nr, nc = row + dr, col + dc
-                if (
-                    self._in_bounds(nr, nc)
-                    and (nr, nc) not in self.blocked_cells
-                ):
-                    edges.append(((row, col), (nr, nc), direction))
-
-        self._rng.shuffle(edges)
-        for cell_a, cell_b, direction in edges:
-            if dsu.union(cell_a, cell_b):
-                self._remove_wall(cell_a, cell_b, direction)
-                self._record_step("carve", cell_a, cell_b, direction, cell_b)
-
-    def _run_prim(self) -> None:
-        """Carve a spanning tree using randomized Prim's frontier."""
-        visited: Set[Cell] = set(self.blocked_cells)
-        start = self.entry_cell
-        visited.add(start)
-        frontier: List[Tuple[Cell, Cell, Direction]] = [
-            (start, nxt, direction)
-            for direction, nxt in self._neighbors(start)
-        ]
-
-        while frontier:
-            idx = self._rng.randrange(len(frontier))
-            frontier[idx], frontier[-1] = frontier[-1], frontier[idx]
-            cell_a, cell_b, direction = frontier.pop()
-            if cell_b in visited:
-                continue
-            self._remove_wall(cell_a, cell_b, direction)
-            self._record_step("carve", cell_a, cell_b, direction, cell_b)
-            visited.add(cell_b)
-            for next_dir, nxt in self._neighbors(cell_b):
-                if nxt not in visited:
-                    frontier.append((cell_b, nxt, next_dir))
+                stack.pop()
 
     def _ensure_full_connectivity(self) -> None:
         """Connect any disconnected playable components to entry's region."""
@@ -367,7 +240,6 @@ class MazeGenerator:
                 for direction, nxt in self._neighbors(cell):
                     if nxt in reachable:
                         self._remove_wall(cell, nxt, direction)
-                        self._record_step("carve", cell, nxt, direction, nxt)
                         bridged = True
                         break
                 if bridged:
@@ -492,7 +364,6 @@ class MazeGenerator:
             for direction, nxt in candidates:
                 if not self._creates_open_area(cell, nxt, direction):
                     self._remove_wall(cell, nxt, direction)
-                    self._record_step("braid", cell, nxt, direction, nxt)
                     break
 
         if self._loop_count() < 2:
@@ -505,39 +376,26 @@ class MazeGenerator:
                 for direction, nxt in candidates:
                     if not self._creates_open_area(cell, nxt, direction):
                         self._remove_wall(cell, nxt, direction)
-                        self._record_step("braid", cell, nxt, direction, nxt)
                         break
 
-    def generate(self, record_steps: bool = False) -> None:
-        """Generate the maze according to the configured mode and algorithm."""
+    def generate(self) -> None:
+        """Generate the maze using iterative recursive backtracker."""
         self.grid = [
             [ALL_WALLS for _ in range(self.width)] for _ in range(self.height)
         ]
-        self.generation_steps = []
-        self._record_steps = record_steps
-        try:
-            if self.algorithm == "kruskal":
-                self._run_kruskal()
-            elif self.algorithm == "prim":
-                self._run_prim()
-            else:
-                self._run_backtracker()
-
-            self._ensure_full_connectivity()
-            if not self.perfect:
-                self._braid_and_add_loops()
-        finally:
-            self._record_steps = False
+        self._run_backtracker()
+        self._ensure_full_connectivity()
+        if not self.perfect:
+            self._braid_and_add_loops()
         self._generated = True
 
-    def _bfs_solve(self) -> Tuple[List[Cell], List[Cell], str]:
-        """Run BFS from entry to exit, returning explored, path cells, NESW."""
+    def shortest_path(self) -> str:
+        """Compute the shortest valid path from entry to exit as NESW text."""
         start = self.entry_cell
         target = self.exit_cell
         queue: deque[Cell] = deque([start])
         parent: Dict[Cell, Tuple[Cell, Direction]] = {}
         seen: Set[Cell] = {start}
-        explored: List[Cell] = [start]
 
         while queue:
             curr = queue.popleft()
@@ -550,34 +408,20 @@ class MazeGenerator:
                     nxt = (row + dr, col + dc)
                     if self._in_bounds(*nxt) and nxt not in seen:
                         seen.add(nxt)
-                        explored.append(nxt)
                         parent[nxt] = (curr, direction)
                         queue.append(nxt)
 
         if target not in parent and target != start:
-            return explored, [], ""
+            return ""
 
         letters: List[str] = []
-        cells: List[Cell] = [target]
         curr = target
         while curr != start:
             prev, direction = parent[curr]
             letters.append(direction.letter)
-            cells.append(prev)
             curr = prev
         letters.reverse()
-        cells.reverse()
-        return explored, cells, "".join(letters)
-
-    def shortest_path(self) -> str:
-        """Compute the shortest valid path from entry to exit as NESW text."""
-        _explored, _cells, route = self._bfs_solve()
-        return route
-
-    def solve_with_trace(self) -> Tuple[List[Cell], List[Cell]]:
-        """Return (explored_cells, shortest_path_cells) for animation."""
-        explored, cells, _route = self._bfs_solve()
-        return explored, cells
+        return "".join(letters)
 
     def shortest_path_coords(self) -> List[Coord]:
         """Return ordered (x, y) coordinates along the shortest path."""
@@ -611,32 +455,3 @@ class MazeGenerator:
         lines.append(route)
         with open(filepath, "w", encoding="utf-8") as stream:
             stream.write("\n".join(lines) + "\n")
-
-
-def pick_random_endpoints(
-    width: int,
-    height: int,
-    blocked_cells: Set[Cell],
-    rng: Optional[random.Random] = None,
-) -> Tuple[Coord, Coord]:
-    """Choose two distinct playable (x, y) coordinates avoiding blocked."""
-    rand = rng if rng is not None else random.Random()
-    playable: List[Coord] = [
-        (c, r)
-        for r in range(height)
-        for c in range(width)
-        if (r, c) not in blocked_cells
-    ]
-    if len(playable) < 2:
-        playable = [(c, r) for r in range(height) for c in range(width)]
-
-    entry = rand.choice(playable)
-    min_dist = max(2, (width + height) // 3)
-    far = [
-        pt for pt in playable
-        if pt != entry and (abs(pt[0] - entry[0]) + abs(pt[1] - entry[1]))
-        >= min_dist
-    ]
-    candidates = far if far else [pt for pt in playable if pt != entry]
-    exit_pt = rand.choice(candidates)
-    return entry, exit_pt
