@@ -8,5 +8,3 @@ PERFECT=True
 
 # Optional parameters:
 # SEED=42
-# ALGORITHM=backtracker
-# DISPLAY=ascii
