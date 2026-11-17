@@ -33,8 +33,6 @@ class TestConfigParser(unittest.TestCase):
             "OUTPUT_FILE=maze.txt\n"
             "PERFECT=False\n"
             "SEED=42\n"
-            "ALGORITHM=kruskal\n"
-            "DISPLAY=mlx\n"
         )
         cfg = parse_config(path)
         self.assertEqual(cfg.width, 20)
@@ -44,8 +42,6 @@ class TestConfigParser(unittest.TestCase):
         self.assertEqual(cfg.output_file, "maze.txt")
         self.assertFalse(cfg.perfect)
         self.assertEqual(cfg.seed, 42)
-        self.assertEqual(cfg.algorithm, "kruskal")
-        self.assertEqual(cfg.display, "mlx")
 
     def test_missing_file_raises_config_error(self) -> None:
         """Non-existent path raises ConfigError."""

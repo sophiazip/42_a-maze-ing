@@ -14,10 +14,7 @@ MANDATORY_KEYS = frozenset({
     "PERFECT",
 })
 
-OPTIONAL_KEYS = frozenset({"SEED", "ALGORITHM", "DISPLAY"})
-ALGORITHMS: Tuple[str, ...] = ("backtracker", "kruskal", "prim")
-VALID_ALGORITHMS = frozenset(ALGORITHMS)
-VALID_DISPLAYS = frozenset({"ascii", "mlx"})
+OPTIONAL_KEYS = frozenset({"SEED"})
 
 
 class ConfigError(Exception):
@@ -34,10 +31,8 @@ class MazeConfig:
         entry: Entry coordinates as (x, y).
         exit: Exit coordinates as (x, y).
         output_file: Path where the generated maze is written.
-        perfect: True for a perfect maze, False for a playable board.
+        perfect: True for a perfect maze, False for a maze with loops.
         seed: Optional integer seed for reproducible generation.
-        algorithm: Generation algorithm name.
-        display: Visual renderer mode ('ascii' or 'mlx').
     """
 
     width: int
@@ -47,8 +42,6 @@ class MazeConfig:
     output_file: str
     perfect: bool
     seed: Optional[int] = None
-    algorithm: str = "backtracker"
-    display: str = "ascii"
 
 
 def _parse_int(raw: str, key: str) -> int:
@@ -186,20 +179,6 @@ def parse_config(path: str) -> MazeConfig:
     if "SEED" in pairs and pairs["SEED"].lower() not in {"", "none"}:
         seed = _parse_int(pairs["SEED"], "SEED")
 
-    algorithm = pairs.get("ALGORITHM", "backtracker").lower()
-    if algorithm not in VALID_ALGORITHMS:
-        raise ConfigError(
-            f"Unsupported ALGORITHM {algorithm!r}. "
-            f"Choose from: {', '.join(sorted(VALID_ALGORITHMS))}."
-        )
-
-    display = pairs.get("DISPLAY", "ascii").lower()
-    if display not in VALID_DISPLAYS:
-        raise ConfigError(
-            f"Unsupported DISPLAY {display!r}. "
-            f"Choose from: {', '.join(sorted(VALID_DISPLAYS))}."
-        )
-
     return MazeConfig(
         width=width,
         height=height,
@@ -208,6 +187,4 @@ def parse_config(path: str) -> MazeConfig:
         output_file=output_file,
         perfect=perfect,
         seed=seed,
-        algorithm=algorithm,
-        display=display,
     )
